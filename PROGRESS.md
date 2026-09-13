@@ -47,9 +47,12 @@ Acceptance:
   - `FULLTEXT` index on STORED generated TEXT columns
 - `sqlplugin/mysql/query_converter.go` emits MySQL-8-only `x member of (col)` and
   `json_overlaps(...)`; MariaDB has JSON_CONTAINS always, JSON_OVERLAPS only 10.9+.
-- Plugin registration sites to touch: `cmd/server/main.go`, `cmd/tools/sql/main.go`,
-  `tools/sql/main.go`, `common/persistence/visibility/defs.go`,
+- Plugin registration sites considered at plan time: `cmd/server/main.go`,
+  `cmd/tools/sql/main.go`, `tools/sql/main.go`, `common/persistence/visibility/defs.go`,
   `common/persistence/visibility/store/sql/query_converter_legacy_factory.go`.
+  **Only the last two needed changing.** The first three already import the
+  `sqlplugin/mysql` package, and `mariadb.go` registers the plugin from that package's
+  own `init()`, so they pick it up with no edit. Not a gap.
 - Expected-schema-version wiring lives in `sqlplugin/<x>/db.go` -> `schema/<x>/version.go`.
 - Local docker has `mariadb:11.4` already pulled. Reusing it (11.4 LTS).
 
@@ -60,9 +63,11 @@ Rejected by MariaDB, needed a rewrite:
 - `x MEMBER OF (arr)` — not supported -> `JSON_CONTAINS(arr, JSON_QUOTE(x))`
 - expression indexes `CREATE INDEX i ON t ((expr))` — not supported -> generated column
 - multi-valued indexes `(CAST(col AS CHAR(255) ARRAY))` — not supported -> index dropped
-- `COALESCE(ct, CAST('9999-12-31 23:59:59' AS DATETIME))` in a generated column — rejected
-  with "Function or expression ... cannot be used in the GENERATED ALWAYS AS clause";
-  dropping the inner CAST makes it accepted *and* indexable.
+- `COALESCE(ct, CAST('9999-12-31 23:59:59' AS DATETIME))` in a generated column — the
+  column itself is *accepted* and computes correct values; it is `CREATE INDEX` on it
+  that fails, with "Function or expression ... cannot be used in the GENERATED ALWAYS AS
+  clause" (ERROR 1901). Dropping the inner CAST makes the column indexable.
+  (Corrected after verdict 01 C6; re-probed independently.)
 - `JSON_VALUE(doc,'$.b')` on a JSON boolean returns `1`/`0`, not `'true'`/`'false'`, so
   `JSON_VALUE(...) = 'true'` silently yields 0. Boolean columns use
   `JSON_UNQUOTE(JSON_EXTRACT(...)) = 'true'` instead.
