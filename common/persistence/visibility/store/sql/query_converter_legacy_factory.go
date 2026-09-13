@@ -22,6 +22,8 @@ func NewQueryConverterLegacy(
 	switch pluginName {
 	case mysql.PluginName:
 		return newMySQLQueryConverter(namespaceName, namespaceID, saTypeMap, saMapper, queryString, chasmMapper, archetypeID)
+	case mysql.PluginNameMariaDB:
+		return newMariaDBQueryConverter(namespaceName, namespaceID, saTypeMap, saMapper, queryString, chasmMapper, archetypeID)
 	case postgresql.PluginName, postgresql.PluginNamePGX:
 		return newPostgreSQLQueryConverter(namespaceName, namespaceID, saTypeMap, saMapper, queryString, chasmMapper, archetypeID)
 	case sqlite.PluginName:

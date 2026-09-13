@@ -18,6 +18,7 @@ const (
 )
 
 type plugin struct {
+	flavor         flavor
 	queryConverter sqlplugin.VisibilityQueryConverter
 }
 
@@ -25,7 +26,8 @@ var _ sqlplugin.Plugin = (*plugin)(nil)
 
 func init() {
 	sql.RegisterPlugin(PluginName, &plugin{
-		queryConverter: &queryConverter{},
+		flavor:         mysqlFlavor,
+		queryConverter: &queryConverter{mysqlDialect{}},
 	})
 }
 
@@ -48,7 +50,7 @@ func (p *plugin) CreateDB(
 		return p.createDBConnection(dbKind, cfg, r)
 	}
 	handle := sqlplugin.NewDatabaseHandle(dbKind, connect, isConnNeedsRefreshError, logger, metricsHandler, clock.NewRealTimeSource())
-	db := newDB(dbKind, cfg.DatabaseName, handle, nil, logger)
+	db := newDB(dbKind, cfg.DatabaseName, p.flavor, handle, nil, logger)
 	return db, nil
 }
 

@@ -656,6 +656,17 @@ install-schema-mysql8: temporal-sql-tool
 	./temporal-sql-tool -u $(SQL_USER) --pw $(SQL_PASSWORD) --pl mysql8 --db $(VISIBILITY_DB) setup-schema -v 0.0
 	./temporal-sql-tool -u $(SQL_USER) --pw $(SQL_PASSWORD) --pl mysql8 --db $(VISIBILITY_DB) update-schema -d ./schema/mysql/v8/visibility/versioned
 
+install-schema-mariadb: temporal-sql-tool
+	@printf $(COLOR) "Install MariaDB schema..."
+	./temporal-sql-tool -u $(SQL_USER) --pw $(SQL_PASSWORD) --pl mariadb --db $(TEMPORAL_DB) drop -f
+	./temporal-sql-tool -u $(SQL_USER) --pw $(SQL_PASSWORD) --pl mariadb --db $(TEMPORAL_DB) create
+	./temporal-sql-tool -u $(SQL_USER) --pw $(SQL_PASSWORD) --pl mariadb --db $(TEMPORAL_DB) setup-schema -v 0.0
+	./temporal-sql-tool -u $(SQL_USER) --pw $(SQL_PASSWORD) --pl mariadb --db $(TEMPORAL_DB) update-schema -d ./schema/mariadb/v11/temporal/versioned
+	./temporal-sql-tool -u $(SQL_USER) --pw $(SQL_PASSWORD) --pl mariadb --db $(VISIBILITY_DB) drop  -f
+	./temporal-sql-tool -u $(SQL_USER) --pw $(SQL_PASSWORD) --pl mariadb --db $(VISIBILITY_DB) create
+	./temporal-sql-tool -u $(SQL_USER) --pw $(SQL_PASSWORD) --pl mariadb --db $(VISIBILITY_DB) setup-schema -v 0.0
+	./temporal-sql-tool -u $(SQL_USER) --pw $(SQL_PASSWORD) --pl mariadb --db $(VISIBILITY_DB) update-schema -d ./schema/mariadb/v11/visibility/versioned
+
 install-schema-postgresql: install-schema-postgresql12
 
 install-schema-postgresql12: temporal-sql-tool

@@ -14,6 +14,9 @@ import (
 
 var maxDatetime = time.Date(9999, 12, 31, 23, 59, 59, 0, time.UTC)
 
+// visibilityDatetimeFormat is how datetimes are rendered into visibility SQL.
+const visibilityDatetimeFormat = "2006-01-02 15:04:05.999999"
+
 type (
 	castExpr struct {
 		sqlparser.Expr
@@ -55,26 +58,51 @@ func (node *jsonOverlapsExpr) Format(buf *sqlparser.TrackedBuffer) {
 	buf.Myprintf("json_overlaps(%v, %v)", node.JSONDoc1, node.JSONDoc2)
 }
 
-type queryConverter struct{}
+// visibilityDialect isolates the two pieces of visibility SQL that MySQL 8 and
+// MariaDB do not share. Everything else in queryConverter is identical for both.
+//
+// It is an embedded field rather than an override-by-embedding of queryConverter
+// because Go methods do not dispatch virtually: BuildSelectStmt has to reach the
+// dialect through an interface to see the MariaDB implementations.
+type visibilityDialect interface {
+	// GetCoalesceCloseTimeExpr returns the expression that orders open
+	// executions after closed ones.
+	GetCoalesceCloseTimeExpr() sqlparser.Expr
 
-var _ sqlplugin.VisibilityQueryConverter = (*queryConverter)(nil)
-
-func (c *queryConverter) GetDatetimeFormat() string {
-	return "2006-01-02 15:04:05.999999"
+	// ConvertKeywordListComparisonExpr converts a KeywordList search attribute
+	// predicate into dialect-specific JSON SQL.
+	ConvertKeywordListComparisonExpr(
+		operator string,
+		col *query.SAColumn,
+		value sqlparser.Expr,
+	) (sqlparser.Expr, error)
 }
 
-func (c *queryConverter) GetCoalesceCloseTimeExpr() sqlparser.Expr {
+type queryConverter struct {
+	visibilityDialect
+}
+
+type mysqlDialect struct{}
+
+var _ sqlplugin.VisibilityQueryConverter = (*queryConverter)(nil)
+var _ visibilityDialect = (*mysqlDialect)(nil)
+
+func (c *queryConverter) GetDatetimeFormat() string {
+	return visibilityDatetimeFormat
+}
+
+func (c mysqlDialect) GetCoalesceCloseTimeExpr() sqlparser.Expr {
 	return query.NewFuncExpr(
 		"coalesce",
 		query.CloseTimeSAColumn,
 		&castExpr{
-			Value: query.NewUnsafeSQLString(maxDatetime.Format(c.GetDatetimeFormat())),
+			Value: query.NewUnsafeSQLString(maxDatetime.Format(visibilityDatetimeFormat)),
 			Type:  convertTypeDatetime,
 		},
 	)
 }
 
-func (c *queryConverter) ConvertKeywordListComparisonExpr(
+func (c mysqlDialect) ConvertKeywordListComparisonExpr(
 	operator string,
 	col *query.SAColumn,
 	value sqlparser.Expr,
@@ -234,7 +262,7 @@ func (c *queryConverter) BuildCountStmt(
 	), nil
 }
 
-func (c *queryConverter) buildJSONOverlapsExpr(
+func (c mysqlDialect) buildJSONOverlapsExpr(
 	col *query.SAColumn,
 	value sqlparser.Expr,
 ) (*jsonOverlapsExpr, error) {

@@ -10,6 +10,7 @@ import (
 	"go.temporal.io/server/common/log"
 	"go.temporal.io/server/common/persistence/schema"
 	"go.temporal.io/server/common/persistence/sql/sqlplugin"
+	mariadbschemaV11 "go.temporal.io/server/schema/mariadb/v11"
 	mysqlschemaV8 "go.temporal.io/server/schema/mysql/v8"
 )
 
@@ -27,10 +28,33 @@ const (
 	readOnlyModeCode = 1836
 )
 
+// flavor describes which MySQL-protocol server a connection talks to. MySQL and
+// MariaDB share this package's SQL almost entirely; they differ only in the
+// plugin name they are configured under and in the schema lineage they expect.
+type flavor struct {
+	pluginName              string
+	schemaVersion           string
+	visibilitySchemaVersion string
+}
+
+var (
+	mysqlFlavor = flavor{
+		pluginName:              PluginName,
+		schemaVersion:           mysqlschemaV8.Version,
+		visibilitySchemaVersion: mysqlschemaV8.VisibilityVersion,
+	}
+	mariaDBFlavor = flavor{
+		pluginName:              PluginNameMariaDB,
+		schemaVersion:           mariadbschemaV11.Version,
+		visibilitySchemaVersion: mariadbschemaV11.VisibilityVersion,
+	}
+)
+
 // db represents a logical connection to mysql database
 type db struct {
 	dbKind sqlplugin.DbKind
 	dbName string
+	flavor flavor
 
 	handle    *sqlplugin.DatabaseHandle
 	tx        *sqlx.Tx
@@ -60,6 +84,7 @@ func (mdb *db) IsDupEntryError(err error) bool {
 func newDB(
 	dbKind sqlplugin.DbKind,
 	dbName string,
+	flavor flavor,
 	handle *sqlplugin.DatabaseHandle,
 	tx *sqlx.Tx,
 	logger log.Logger,
@@ -67,6 +92,7 @@ func newDB(
 	mdb := &db{
 		dbKind: dbKind,
 		dbName: dbName,
+		flavor: flavor,
 		handle: handle,
 		tx:     tx,
 		logger: logger,
@@ -92,7 +118,7 @@ func (mdb *db) BeginTx(ctx context.Context) (sqlplugin.Tx, error) {
 	if err != nil {
 		return nil, mdb.handle.ConvertError(err)
 	}
-	return newDB(mdb.dbKind, mdb.dbName, mdb.handle, xtx, mdb.logger), nil
+	return newDB(mdb.dbKind, mdb.dbName, mdb.flavor, mdb.handle, xtx, mdb.logger), nil
 }
 
 // Commit commits a previously started transaction
@@ -111,9 +137,9 @@ func (mdb *db) Close() error {
 	return nil
 }
 
-// PluginName returns the name of the mysql plugin
+// PluginName returns the name of the plugin this connection was created for.
 func (mdb *db) PluginName() string {
-	return PluginName
+	return mdb.flavor.pluginName
 }
 
 // DbName returns the name of the database
@@ -125,9 +151,9 @@ func (mdb *db) DbName() string {
 func (mdb *db) ExpectedVersion() string {
 	switch mdb.dbKind {
 	case sqlplugin.DbKindMain:
-		return mysqlschemaV8.Version
+		return mdb.flavor.schemaVersion
 	case sqlplugin.DbKindVisibility:
-		return mysqlschemaV8.VisibilityVersion
+		return mdb.flavor.visibilitySchemaVersion
 	default:
 		panic(fmt.Sprintf("unknown db kind %v", mdb.dbKind))
 	}

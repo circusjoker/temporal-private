@@ -17,7 +17,7 @@ import (
 func TestQueryConverter_GetCoalesceCloseTimeExpr(t *testing.T) {
 	t.Parallel()
 	r := require.New(t)
-	qc := &queryConverter{}
+	qc := &queryConverter{mysqlDialect{}}
 	expr := qc.GetCoalesceCloseTimeExpr()
 	r.Equal(
 		"coalesce(close_time, cast('9999-12-31 23:59:59' as datetime))",
@@ -101,7 +101,7 @@ func TestQueryConverter_ConvertKeywordListComparisonExpr(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			r := require.New(t)
-			qc := &queryConverter{}
+			qc := &queryConverter{mysqlDialect{}}
 			out, err := qc.ConvertKeywordListComparisonExpr(tc.operator, tc.col, tc.value)
 			if tc.err != "" {
 				r.Error(err)
@@ -151,7 +151,7 @@ func TestQueryConverter_ConvertTextComparisonExpr(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			r := require.New(t)
-			qc := &queryConverter{}
+			qc := &queryConverter{mysqlDialect{}}
 			out, err := qc.ConvertTextComparisonExpr(tc.operator, tc.col, tc.value)
 			r.NoError(err)
 			r.Equal(tc.out, sqlparser.String(out))
@@ -240,7 +240,7 @@ func TestQueryConverter_BuildSelectStmt(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			r := require.New(t)
-			qc := &queryConverter{}
+			qc := &queryConverter{mysqlDialect{}}
 			qp := &query.QueryParams[sqlparser.Expr]{
 				QueryExpr: tc.queryExpr,
 			}
@@ -294,7 +294,7 @@ func TestQueryConverter_BuildCountStmt(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			r := require.New(t)
-			qc := &queryConverter{}
+			qc := &queryConverter{mysqlDialect{}}
 			qp := &query.QueryParams[sqlparser.Expr]{
 				QueryExpr: tc.queryExpr,
 				GroupBy:   tc.groupBy,

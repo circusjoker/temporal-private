@@ -33,8 +33,26 @@ type (
 		JSONDoc2 sqlparser.Expr
 	}
 
-	mysqlQueryConverter struct{}
+	// legacyVisibilityDialect isolates the visibility SQL that MySQL 8 and
+	// MariaDB do not share. Go methods do not dispatch virtually, so the
+	// dialect has to be reached through an interface for buildSelectStmt to
+	// see the MariaDB implementations.
+	legacyVisibilityDialect interface {
+		getCoalesceCloseTimeExpr() sqlparser.Expr
+		convertKeywordListComparisonExpr(expr *sqlparser.ComparisonExpr) (sqlparser.Expr, error)
+	}
+
+	// mysqlQueryConverter is shared by the mysql8 and mariadb plugins; the
+	// dialect supplies the parts that differ.
+	mysqlQueryConverter struct {
+		legacyVisibilityDialect
+	}
+
+	mysqlDialect struct{}
 )
+
+// mysqlDatetimeFormat is how datetimes are rendered into MySQL/MariaDB SQL.
+const mysqlDatetimeFormat = "2006-01-02 15:04:05.999999"
 
 var (
 	convertTypeDatetime = &sqlparser.ConvertType{Type: "datetime"}
@@ -46,6 +64,7 @@ var _ sqlparser.Expr = (*memberOfExpr)(nil)
 var _ sqlparser.Expr = (*jsonOverlapsExpr)(nil)
 
 var _ pluginQueryConverterLegacy = (*mysqlQueryConverter)(nil)
+var _ legacyVisibilityDialect = (*mysqlDialect)(nil)
 
 func (node *castExpr) Format(buf *sqlparser.TrackedBuffer) {
 	buf.Myprintf("cast(%v as %v)", node.Value, node.Type)
@@ -69,7 +88,7 @@ func newMySQLQueryConverter(
 	archetypeID chasm.ArchetypeID,
 ) *QueryConverterLegacy {
 	return newQueryConverterInternal(
-		&mysqlQueryConverter{},
+		&mysqlQueryConverter{mysqlDialect{}},
 		namespaceName,
 		namespaceID,
 		saTypeMap,
@@ -81,21 +100,21 @@ func newMySQLQueryConverter(
 }
 
 func (c *mysqlQueryConverter) getDatetimeFormat() string {
-	return "2006-01-02 15:04:05.999999"
+	return mysqlDatetimeFormat
 }
 
-func (c *mysqlQueryConverter) getCoalesceCloseTimeExpr() sqlparser.Expr {
+func (c mysqlDialect) getCoalesceCloseTimeExpr() sqlparser.Expr {
 	return newFuncExpr(
 		coalesceFuncName,
 		closeTimeSaColName,
 		&castExpr{
-			Value: newUnsafeSQLString(maxDatetimeValue.Format(c.getDatetimeFormat())),
+			Value: newUnsafeSQLString(maxDatetimeValue.Format(mysqlDatetimeFormat)),
 			Type:  convertTypeDatetime,
 		},
 	)
 }
 
-func (c *mysqlQueryConverter) convertKeywordListComparisonExpr(
+func (c mysqlDialect) convertKeywordListComparisonExpr(
 	expr *sqlparser.ComparisonExpr,
 ) (sqlparser.Expr, error) {
 	if !isSupportedKeywordListOperator(expr.Operator) {
@@ -139,7 +158,7 @@ func (c *mysqlQueryConverter) convertKeywordListComparisonExpr(
 	return newExpr, nil
 }
 
-func (c *mysqlQueryConverter) convertToJsonOverlapsExpr(
+func (c mysqlDialect) convertToJsonOverlapsExpr(
 	expr *sqlparser.ComparisonExpr,
 ) (*jsonOverlapsExpr, error) {
 	valTuple, isValTuple := expr.Right.(sqlparser.ValTuple)
