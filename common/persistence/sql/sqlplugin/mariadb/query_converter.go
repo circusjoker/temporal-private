@@ -1,57 +1,33 @@
-package mysql
+package mariadb
 
 import (
 	"encoding/json"
 
 	"github.com/temporalio/sqlparser"
-	"go.temporal.io/server/common/persistence/sql"
+	"go.temporal.io/server/common/persistence/sql/sqlplugin/mysql"
 	"go.temporal.io/server/common/persistence/visibility/store/query"
 )
 
-// PluginNameMariaDB is the name of the MariaDB plugin.
-//
-// MariaDB speaks the MySQL wire protocol and shares every CRUD statement in this
-// package, so it reuses it rather than duplicating it -- the same way the
-// postgresql package hosts both the pq and pgx plugins. The differences are
-// confined to:
-//
-//   - the visibility schema (schema/mariadb/v11/visibility), because MariaDB
-//     11.4 has no expression indexes, no multi-valued (ARRAY) indexes and no
-//     `->` / `->>` JSON operators;
-//   - three cluster_membership columns in the execution schema, which are
-//     TIMESTAMP(6) because MariaDB truncates sub-second values where MySQL
-//     rounds them (see schema/mariadb/v11/temporal/schema.sql);
-//   - the database collation, pinned to NO PAD in admin.go; and
-//   - the KeywordList and close-time SQL emitted by the query converter below.
-//
-// Verified against mariadb:11.4.
-const PluginNameMariaDB = "mariadb"
+// dialect supplies the visibility SQL MariaDB spells differently from MySQL 8.
+// Everything else comes from mysql.NewQueryConverter.
+type dialect struct{}
 
-func init() {
-	sql.RegisterPlugin(PluginNameMariaDB, &plugin{
-		flavor:         mariaDBFlavor,
-		queryConverter: &queryConverter{mariaDBDialect{}},
-	})
-}
-
-type mariaDBDialect struct{}
-
-var _ visibilityDialect = (*mariaDBDialect)(nil)
+var _ mysql.VisibilityDialect = (*dialect)(nil)
 
 // closeTimeOrMaxColumn is the generated column that materializes the
-// COALESCE(close_time, <max datetime>) that MySQL writes inline in each index.
+// COALESCE(close_time, <max datetime>) MySQL writes inline in each index.
 // MariaDB has no expression indexes, so the expression has to be a real column
 // for the visibility indexes to be usable.
 var closeTimeOrMaxColumn = query.NewColName("close_time_or_max")
 
-func (mariaDBDialect) GetCoalesceCloseTimeExpr() sqlparser.Expr {
+func (dialect) GetCoalesceCloseTimeExpr() sqlparser.Expr {
 	return closeTimeOrMaxColumn
 }
 
 // ConvertKeywordListComparisonExpr builds MariaDB's equivalents of MySQL's
-// `x member of (col)` (which MariaDB does not have) and of `json_overlaps` with
-// a `cast(... as json)` argument (MariaDB has json_overlaps but no cast to json).
-func (d mariaDBDialect) ConvertKeywordListComparisonExpr(
+// `x member of (col)`, which MariaDB does not have, and of `json_overlaps` with
+// a `cast(... as json)` argument -- MariaDB has json_overlaps but no cast to json.
+func (d dialect) ConvertKeywordListComparisonExpr(
 	operator string,
 	col *query.SAColumn,
 	value sqlparser.Expr,
@@ -84,7 +60,7 @@ func (d mariaDBDialect) ConvertKeywordListComparisonExpr(
 	return newExpr, nil
 }
 
-func (mariaDBDialect) buildJSONOverlapsExpr(
+func (dialect) buildJSONOverlapsExpr(
 	col *query.SAColumn,
 	value sqlparser.Expr,
 ) (*jsonOverlapsExpr, error) {
@@ -124,4 +100,17 @@ var _ sqlparser.Expr = (*jsonContainsExpr)(nil)
 
 func (node *jsonContainsExpr) Format(buf *sqlparser.TrackedBuffer) {
 	buf.Myprintf("json_contains(%v, json_quote(%v))", node.JSONDoc, node.Candidate)
+}
+
+// jsonOverlapsExpr renders `json_overlaps(<doc1>, <doc2>)`.
+type jsonOverlapsExpr struct {
+	sqlparser.Expr
+	JSONDoc1 sqlparser.Expr
+	JSONDoc2 sqlparser.Expr
+}
+
+var _ sqlparser.Expr = (*jsonOverlapsExpr)(nil)
+
+func (node *jsonOverlapsExpr) Format(buf *sqlparser.TrackedBuffer) {
+	buf.Myprintf("json_overlaps(%v, %v)", node.JSONDoc1, node.JSONDoc2)
 }

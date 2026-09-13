@@ -58,13 +58,14 @@ func (node *jsonOverlapsExpr) Format(buf *sqlparser.TrackedBuffer) {
 	buf.Myprintf("json_overlaps(%v, %v)", node.JSONDoc1, node.JSONDoc2)
 }
 
-// visibilityDialect isolates the two pieces of visibility SQL that MySQL 8 and
-// MariaDB do not share. Everything else in queryConverter is identical for both.
+// VisibilityDialect isolates the pieces of visibility SQL that MySQL-protocol
+// servers do not all share. Everything else in the query converter is identical
+// for them, so a dialect implements just these two and gets the rest.
 //
-// It is an embedded field rather than an override-by-embedding of queryConverter
-// because Go methods do not dispatch virtually: BuildSelectStmt has to reach the
-// dialect through an interface to see the MariaDB implementations.
-type visibilityDialect interface {
+// It is an embedded interface rather than an override-by-embedding of the
+// converter struct because Go methods do not dispatch virtually: BuildSelectStmt
+// has to reach the dialect through an interface to see a dialect's overrides.
+type VisibilityDialect interface {
 	// GetCoalesceCloseTimeExpr returns the expression that orders open
 	// executions after closed ones.
 	GetCoalesceCloseTimeExpr() sqlparser.Expr
@@ -79,13 +80,18 @@ type visibilityDialect interface {
 }
 
 type queryConverter struct {
-	visibilityDialect
+	VisibilityDialect
+}
+
+// NewQueryConverter builds a visibility query converter for the given dialect.
+func NewQueryConverter(dialect VisibilityDialect) sqlplugin.VisibilityQueryConverter {
+	return &queryConverter{VisibilityDialect: dialect}
 }
 
 type mysqlDialect struct{}
 
 var _ sqlplugin.VisibilityQueryConverter = (*queryConverter)(nil)
-var _ visibilityDialect = (*mysqlDialect)(nil)
+var _ VisibilityDialect = (*mysqlDialect)(nil)
 
 func (c *queryConverter) GetDatetimeFormat() string {
 	return visibilityDatetimeFormat

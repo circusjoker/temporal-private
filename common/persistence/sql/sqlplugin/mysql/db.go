@@ -10,7 +10,6 @@ import (
 	"go.temporal.io/server/common/log"
 	"go.temporal.io/server/common/persistence/schema"
 	"go.temporal.io/server/common/persistence/sql/sqlplugin"
-	mariadbschemaV11 "go.temporal.io/server/schema/mariadb/v11"
 	mysqlschemaV8 "go.temporal.io/server/schema/mysql/v8"
 )
 
@@ -28,38 +27,40 @@ const (
 	readOnlyModeCode = 1836
 )
 
-// flavor describes which MySQL-protocol server a connection talks to. MySQL and
-// MariaDB share this package's SQL almost entirely; they differ only in the
-// plugin name they are configured under and in the schema lineage they expect.
-type flavor struct {
-	pluginName              string
-	schemaVersion           string
-	visibilitySchemaVersion string
-	// createDatabaseQuery differs because MariaDB's default utf8mb4 collation is
-	// PAD SPACE where MySQL's is NO PAD -- see admin.go.
-	createDatabaseQuery string
+// Flavor describes which MySQL-protocol server a connection talks to.
+//
+// MySQL and MariaDB share this package's SQL almost entirely, so rather than
+// this package knowing about every dialect, a Flavor carries the few things
+// that differ and dialects live in their own plugin packages. See
+// sqlplugin/mariadb for one built this way.
+type Flavor struct {
+	// PluginName is what the db reports as its plugin name. Visibility
+	// dispatches its query converter on this.
+	PluginName string
+	// SchemaVersion and VisibilitySchemaVersion are the schema lineages this
+	// flavor expects to find in the database.
+	SchemaVersion           string
+	VisibilitySchemaVersion string
+	// CreateDatabaseQuery is a fmt template taking the database name. Dialects
+	// override it when their defaults differ -- MariaDB pins a collation.
+	CreateDatabaseQuery string
 }
 
-var (
-	mysqlFlavor = flavor{
-		pluginName:              PluginName,
-		schemaVersion:           mysqlschemaV8.Version,
-		visibilitySchemaVersion: mysqlschemaV8.VisibilityVersion,
-		createDatabaseQuery:     createDatabaseQuery,
+// MySQLFlavor is the Flavor for MySQL 8 itself.
+func MySQLFlavor() Flavor {
+	return Flavor{
+		PluginName:              PluginName,
+		SchemaVersion:           mysqlschemaV8.Version,
+		VisibilitySchemaVersion: mysqlschemaV8.VisibilityVersion,
+		CreateDatabaseQuery:     CreateDatabaseQuery,
 	}
-	mariaDBFlavor = flavor{
-		pluginName:              PluginNameMariaDB,
-		schemaVersion:           mariadbschemaV11.Version,
-		visibilitySchemaVersion: mariadbschemaV11.VisibilityVersion,
-		createDatabaseQuery:     createDatabaseQueryMariaDB,
-	}
-)
+}
 
 // db represents a logical connection to mysql database
 type db struct {
 	dbKind sqlplugin.DbKind
 	dbName string
-	flavor flavor
+	flavor Flavor
 
 	handle    *sqlplugin.DatabaseHandle
 	tx        *sqlx.Tx
@@ -89,7 +90,7 @@ func (mdb *db) IsDupEntryError(err error) bool {
 func newDB(
 	dbKind sqlplugin.DbKind,
 	dbName string,
-	flavor flavor,
+	flavor Flavor,
 	handle *sqlplugin.DatabaseHandle,
 	tx *sqlx.Tx,
 	logger log.Logger,
@@ -144,7 +145,7 @@ func (mdb *db) Close() error {
 
 // PluginName returns the name of the plugin this connection was created for.
 func (mdb *db) PluginName() string {
-	return mdb.flavor.pluginName
+	return mdb.flavor.PluginName
 }
 
 // DbName returns the name of the database
@@ -156,9 +157,9 @@ func (mdb *db) DbName() string {
 func (mdb *db) ExpectedVersion() string {
 	switch mdb.dbKind {
 	case sqlplugin.DbKindMain:
-		return mdb.flavor.schemaVersion
+		return mdb.flavor.SchemaVersion
 	case sqlplugin.DbKindVisibility:
-		return mdb.flavor.visibilitySchemaVersion
+		return mdb.flavor.VisibilitySchemaVersion
 	default:
 		panic(fmt.Sprintf("unknown db kind %v", mdb.dbKind))
 	}

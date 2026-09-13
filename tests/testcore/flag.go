@@ -4,6 +4,7 @@ import (
 	"flag"
 
 	"go.temporal.io/server/common/config"
+	"go.temporal.io/server/common/persistence/sql/sqlplugin/mariadb"
 	"go.temporal.io/server/common/persistence/sql/sqlplugin/mysql"
 	"go.temporal.io/server/common/persistence/sql/sqlplugin/postgresql"
 	"go.temporal.io/server/common/persistence/sql/sqlplugin/sqlite"
@@ -24,7 +25,7 @@ func init() {
 
 func UseSQLVisibility() bool {
 	switch cliFlags.persistenceDriver {
-	case mysql.PluginName, mysql.PluginNameMariaDB, postgresql.PluginName, postgresql.PluginNamePGX, sqlite.PluginName:
+	case mysql.PluginName, mariadb.PluginName, postgresql.PluginName, postgresql.PluginNamePGX, sqlite.PluginName:
 		return true
 	// If the main storage is Cassandra, Elasticsearch is used for visibility.
 	default:

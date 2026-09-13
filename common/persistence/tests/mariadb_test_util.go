@@ -10,7 +10,7 @@ import (
 	"go.temporal.io/server/common/metrics/metricstest"
 	"go.temporal.io/server/common/persistence/serialization"
 	"go.temporal.io/server/common/persistence/sql"
-	"go.temporal.io/server/common/persistence/sql/sqlplugin/mysql"
+	"go.temporal.io/server/common/persistence/sql/sqlplugin/mariadb"
 	"go.temporal.io/server/common/resolver"
 	"go.temporal.io/server/common/shuffle"
 	"go.temporal.io/server/temporal/environment"
@@ -64,7 +64,7 @@ func NewMariaDBConfig() *config.SQL {
 			strconv.Itoa(environment.GetMariaDBPort()),
 		),
 		ConnectProtocol: testMySQLConnectionProtocol,
-		PluginName:      mysql.PluginNameMariaDB,
+		PluginName:      mariadb.PluginName,
 		DatabaseName:    testMySQLDatabaseNamePrefix + shuffle.String(testMySQLDatabaseNameSuffix),
 	}
 }

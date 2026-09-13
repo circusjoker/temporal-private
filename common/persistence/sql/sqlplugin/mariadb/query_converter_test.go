@@ -1,4 +1,4 @@
-package mysql
+package mariadb
 
 import (
 	"fmt"
@@ -10,11 +10,12 @@ import (
 	"github.com/temporalio/sqlparser"
 	enumspb "go.temporal.io/api/enums/v1"
 	"go.temporal.io/server/common/persistence/sql/sqlplugin"
+	"go.temporal.io/server/common/persistence/sql/sqlplugin/mysql"
 	"go.temporal.io/server/common/persistence/visibility/store/query"
 )
 
-func newMariaDBQueryConverter() *queryConverter {
-	return &queryConverter{mariaDBDialect{}}
+func newMariaDBQueryConverter() sqlplugin.VisibilityQueryConverter {
+	return mysql.NewQueryConverter(dialect{})
 }
 
 func TestMariaDBQueryConverter_GetCoalesceCloseTimeExpr(t *testing.T) {
@@ -23,7 +24,7 @@ func TestMariaDBQueryConverter_GetCoalesceCloseTimeExpr(t *testing.T) {
 	// MariaDB has no expression indexes: the COALESCE is a generated column.
 	r.Equal(
 		"close_time_or_max",
-		sqlparser.String(newMariaDBQueryConverter().GetCoalesceCloseTimeExpr()),
+		sqlparser.String(dialect{}.GetCoalesceCloseTimeExpr()),
 	)
 }
 
@@ -98,7 +99,7 @@ func TestMariaDBQueryConverter_ConvertKeywordListComparisonExpr(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			r := require.New(t)
-			out, err := newMariaDBQueryConverter().
+			out, err := dialect{}.
 				ConvertKeywordListComparisonExpr(tc.operator, keywordListCol, tc.value)
 			if tc.err != "" {
 				r.Error(err)

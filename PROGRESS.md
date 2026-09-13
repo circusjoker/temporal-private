@@ -49,7 +49,45 @@ Acceptance:
   - `evidence/verdicts/03-verdicts-not-delivered.md` — kept as the record of the delivery
     problem: both reports arrived only after four explicit `SendMessage` requests.
 
-## Next
+## Next (requested after the first acceptance pass)
+- [x] 11 MariaDB becomes its own plugin package rather than edits inside `sqlplugin/mysql`
+- [ ] 12 A real answer for unindexed KeywordList search attributes
+- [ ] 13 The agentic check runs without an LLM (mock model), and still against Ollama
+
+### 11 — MariaDB is now an extension, not a patch
+`sqlplugin/mysql` is 4,478 non-test lines and its `db` implements **184 methods**, so a
+fully standalone package would mean duplicating all of it. But `sqlplugin.Plugin` is a
+**two-method interface**, so the fix was to make `mysql` extensible instead of
+MariaDB-aware:
+
+`mysql` now exports four seams and knows nothing about MariaDB (it no longer even imports
+`schema/mariadb/v11`, which it previously did — the dependency pointed the wrong way):
+
+| seam | purpose |
+|---|---|
+| `mysql.Flavor` | plugin name, schema lineages, CREATE DATABASE template |
+| `mysql.NewPlugin(flavor, converter)` | build a plugin for any MySQL-protocol server |
+| `mysql.VisibilityDialect` | the visibility SQL that differs |
+| `mysql.NewQueryConverter(dialect)` | everything else in the converter, shared |
+
+`common/persistence/sql/sqlplugin/mariadb/` is **171 non-test lines** and holds every
+MariaDB-specific decision: plugin name, schema versions, the NO PAD collation, and the
+`close_time_or_max` / `json_contains` / `json_overlaps` dialect.
+
+Cost of the move, stated plainly: `cmd/server/main.go` and `cmd/tools/sql/main.go` now
+need a blank import of the package, the way postgres and sqlite already do. Previously
+MariaDB registered for free from mysql's `init()`. That is the conventional trade and
+worth it.
+
+The legacy visibility converter stays in `visibility/store/sql` next to the MySQL,
+PostgreSQL and SQLite ones — that package's converters are all colocated by design, and
+its helpers are unexported.
+
+Regression check after the move: MariaDB 44/477/0 and MySQL 44/477/0, CLI suites ok, unit
+tests across `persistence/sql`, `visibility` and `searchattribute` all green, server boots
+and reports `visibility_plugin_name: mariadb`.
+
+## Later / optional
 - Nothing blocking. Optional follow-ups, none of which affect the acceptance criteria:
   - KeywordList search attributes are unindexed on MariaDB (11 dropped multi-valued
     indexes). Correct but scanning; would need a companion table or a generated

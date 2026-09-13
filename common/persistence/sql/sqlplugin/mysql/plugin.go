@@ -18,17 +18,26 @@ const (
 )
 
 type plugin struct {
-	flavor         flavor
+	flavor         Flavor
 	queryConverter sqlplugin.VisibilityQueryConverter
 }
 
 var _ sqlplugin.Plugin = (*plugin)(nil)
 
+// NewPlugin builds a plugin for a MySQL-protocol server.
+//
+// It is exported so that a dialect can be added as its own package -- see
+// sqlplugin/mariadb, which registers itself with a MariaDB Flavor and dialect
+// without this package needing to know MariaDB exists.
+func NewPlugin(flavor Flavor, queryConverter sqlplugin.VisibilityQueryConverter) sqlplugin.Plugin {
+	return &plugin{
+		flavor:         flavor,
+		queryConverter: queryConverter,
+	}
+}
+
 func init() {
-	sql.RegisterPlugin(PluginName, &plugin{
-		flavor:         mysqlFlavor,
-		queryConverter: &queryConverter{mysqlDialect{}},
-	})
+	sql.RegisterPlugin(PluginName, NewPlugin(MySQLFlavor(), NewQueryConverter(mysqlDialect{})))
 }
 
 func (p *plugin) GetVisibilityQueryConverter() sqlplugin.VisibilityQueryConverter {

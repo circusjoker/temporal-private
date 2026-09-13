@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"go.temporal.io/server/common/config"
+	"go.temporal.io/server/common/persistence/sql/sqlplugin/mariadb"
 	"go.temporal.io/server/common/persistence/sql/sqlplugin/mysql"
 	"go.temporal.io/server/common/persistence/sql/sqlplugin/postgresql"
 	"go.temporal.io/server/common/persistence/sql/sqlplugin/sqlite"
@@ -42,7 +43,7 @@ func GetTestClusterOption(storeType, driver string) *TestBaseOptions {
 		switch driver {
 		case mysql.PluginName:
 			return GetMySQLTestClusterOption()
-		case mysql.PluginNameMariaDB:
+		case mariadb.PluginName:
 			return GetMariaDBTestClusterOption()
 		case postgresql.PluginName, postgresql.PluginNamePGX:
 			return GetPostgreSQLTestClusterOption(driver, nil)
@@ -86,7 +87,7 @@ func GetMySQLTestClusterOption() *TestBaseOptions {
 // GetMariaDBTestClusterOption return test options
 func GetMariaDBTestClusterOption() *TestBaseOptions {
 	return &TestBaseOptions{
-		SQLDBPluginName: mysql.PluginNameMariaDB,
+		SQLDBPluginName: mariadb.PluginName,
 		DBName:          GenerateRandomDBName(),
 		DBUsername:      testMySQLUser,
 		DBPassword:      testMySQLPassword,

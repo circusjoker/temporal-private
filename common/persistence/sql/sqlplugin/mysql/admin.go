@@ -5,6 +5,13 @@ import (
 	"time"
 )
 
+// CreateDatabaseQuery is the default CREATE DATABASE template, used by
+// Flavor.CreateDatabaseQuery. A dialect can override it -- MariaDB does, to pin
+// a NO PAD collation.
+//
+// NOTE: we have to use %v because somehow mysql doesn't work with ? here.
+const CreateDatabaseQuery = "CREATE DATABASE IF NOT EXISTS %v CHARACTER SET utf8mb4"
+
 const (
 	readSchemaVersionQuery = `SELECT curr_version from schema_version where version_partition=0 and db_name=?`
 
@@ -32,18 +39,6 @@ const (
 		`new_version VARCHAR(64), ` +
 		`old_version VARCHAR(64), ` +
 		`PRIMARY KEY (version_partition, year, month, update_time));`
-
-	// NOTE: we have to use %v because somehow mysql doesn't work with ? here
-	createDatabaseQuery = "CREATE DATABASE IF NOT EXISTS %v CHARACTER SET utf8mb4"
-
-	// MariaDB needs its collation pinned. Left to its own default it picks
-	// utf8mb4_uca1400_ai_ci, which is PAD SPACE, while MySQL 8's utf8mb4_0900_ai_ci
-	// is NO PAD. That is not cosmetic: under PAD SPACE, 'wf-id' and 'wf-id ' are the
-	// same value, so two workflow ids, namespace names or task queue names differing
-	// only by trailing whitespace collide on a unique key that MySQL would accept.
-	// utf8mb4_uca1400_nopad_ai_ci restores MySQL's semantics and keeps the same
-	// accent- and case-insensitivity. Requires MariaDB 10.10+.
-	createDatabaseQueryMariaDB = "CREATE DATABASE IF NOT EXISTS %v CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_nopad_ai_ci"
 
 	dropDatabaseQuery = "DROP DATABASE IF EXISTS %v"
 
@@ -124,7 +119,7 @@ func (mdb *db) DropAllTables(database string) error {
 
 // CreateDatabase creates a database if it doesn't exist
 func (mdb *db) CreateDatabase(name string) error {
-	return mdb.Exec(fmt.Sprintf(mdb.flavor.createDatabaseQuery, name))
+	return mdb.Exec(fmt.Sprintf(mdb.flavor.CreateDatabaseQuery, name))
 }
 
 // DropDatabase drops a database

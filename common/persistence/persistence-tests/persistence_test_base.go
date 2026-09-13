@@ -27,6 +27,7 @@ import (
 	"go.temporal.io/server/common/persistence/client"
 	"go.temporal.io/server/common/persistence/serialization"
 	"go.temporal.io/server/common/persistence/sql"
+	"go.temporal.io/server/common/persistence/sql/sqlplugin/mariadb"
 	"go.temporal.io/server/common/persistence/sql/sqlplugin/mysql"
 	"go.temporal.io/server/common/persistence/sql/sqlplugin/postgresql"
 	"go.temporal.io/server/common/persistence/sql/sqlplugin/sqlite"
@@ -155,7 +156,7 @@ func NewTestBaseWithSQL(options *TestBaseOptions) *TestBase {
 		switch options.SQLDBPluginName {
 		case mysql.PluginName:
 			options.DBPort = environment.GetMySQLPort()
-		case mysql.PluginNameMariaDB:
+		case mariadb.PluginName:
 			options.DBPort = environment.GetMariaDBPort()
 		case postgresql.PluginName, postgresql.PluginNamePGX:
 			options.DBPort = environment.GetPostgreSQLPort()
@@ -169,7 +170,7 @@ func NewTestBaseWithSQL(options *TestBaseOptions) *TestBase {
 		switch options.SQLDBPluginName {
 		case mysql.PluginName:
 			options.DBHost = environment.GetMySQLAddress()
-		case mysql.PluginNameMariaDB:
+		case mariadb.PluginName:
 			options.DBHost = environment.GetMariaDBAddress()
 		case postgresql.PluginName, postgresql.PluginNamePGX:
 			options.DBHost = environment.GetPostgreSQLAddress()

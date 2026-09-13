@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/suite"
-	"go.temporal.io/server/common/persistence/sql/sqlplugin/mysql"
+	"go.temporal.io/server/common/persistence/sql/sqlplugin/mariadb"
 	mariadbversionV11 "go.temporal.io/server/schema/mariadb/v11"
 	"go.temporal.io/server/temporal/environment"
 	"go.temporal.io/server/tools/sql/clitest"
@@ -19,7 +19,7 @@ func TestMariaDBConnTestSuite(t *testing.T) {
 	suite.Run(t, clitest.NewSQLConnTestSuite(
 		environment.GetMariaDBAddress(),
 		strconv.Itoa(environment.GetMariaDBPort()),
-		mysql.PluginNameMariaDB,
+		mariadb.PluginName,
 		testMySQLQuery,
 	))
 }
@@ -29,7 +29,7 @@ func TestMariaDBHandlerTestSuite(t *testing.T) {
 	suite.Run(t, clitest.NewHandlerTestSuite(
 		environment.GetMariaDBAddress(),
 		strconv.Itoa(environment.GetMariaDBPort()),
-		mysql.PluginNameMariaDB,
+		mariadb.PluginName,
 	))
 }
 
@@ -38,7 +38,7 @@ func TestMariaDBSetupSchemaTestSuite(t *testing.T) {
 	suite.Run(t, clitest.NewSetupSchemaTestSuite(
 		environment.GetMariaDBAddress(),
 		strconv.Itoa(environment.GetMariaDBPort()),
-		mysql.PluginNameMariaDB,
+		mariadb.PluginName,
 		testMySQLQuery,
 	))
 }
@@ -48,7 +48,7 @@ func TestMariaDBUpdateSchemaTestSuite(t *testing.T) {
 	suite.Run(t, clitest.NewUpdateSchemaTestSuite(
 		environment.GetMariaDBAddress(),
 		strconv.Itoa(environment.GetMariaDBPort()),
-		mysql.PluginNameMariaDB,
+		mariadb.PluginName,
 		testMySQLQuery,
 		testMariaDBExecutionSchemaVersionDir,
 		mariadbversionV11.Version,
@@ -62,7 +62,7 @@ func TestMariaDBVersionTestSuite(t *testing.T) {
 	suite.Run(t, clitest.NewVersionTestSuite(
 		environment.GetMariaDBAddress(),
 		strconv.Itoa(environment.GetMariaDBPort()),
-		mysql.PluginNameMariaDB,
+		mariadb.PluginName,
 		testMariaDBExecutionSchemaFile,
 		testMariaDBVisibilitySchemaFile,
 	))
