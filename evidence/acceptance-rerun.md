@@ -1,50 +1,51 @@
-# Acceptance re-run — 2026-09-13 17:42:30 CST
+# Acceptance re-run (post-verdict) — 2026-09-13 17:58:06 CST
 
-Server started with 'make start-mariadb' (config/development-mariadb.yaml).
+Containers: MariaDB 3307, MySQL 3306 (control). Server via 'make start-mariadb'.
 
-## config: MariaDB is the single store
+## MariaDB is the single store
   defaultStore: mariadb-default
   visibilityStore: mariadb-visibility
         pluginName: "mariadb"
-        databaseName: "temporal"
+        connectAddr: "127.0.0.1:3307"
         pluginName: "mariadb"
-        databaseName: "temporal_visibility"
+        connectAddr: "127.0.0.1:3307"
 
-## other stores configured? (expect none)
-0
+server DB sockets by port:   33 ->127.0.0.1:3307 
 
-## cluster health
+## collation now pinned NO PAD (the verdict-05 fix)
+temporal	utf8mb4_uca1400_nopad_ai_ci
+temporal_visibility	utf8mb4_uca1400_nopad_ai_ci
+
+## schema versions
+temporal	1.19
+temporal_visibility	1.0
+
+## health
 SERVING
 
-## rows actually in MariaDB
-executions	38
-history_node	245
-executions_visibility	38
-custom_search_attributes	38
+## visibility queries (negative cases must return 0)
+  MdbKeyword = 'mdb-keyword'                   => 1
+  MdbBool = true                               => 1
+  MdbBool = false                              => 0
+  MdbKeywordList = 'alpha'                     => 1
+  MdbKeywordList IN ('beta','zzz')             => 1
+  MdbKeywordList = 'nothere'                   => 0
+  MdbText = 'brave'                            => 1
+  MdbInt = 42                                  => 1
+  MdbDatetime = '2026-09-13T05:06:07Z'         => 1
 
-## fresh workflow through the running server
-QUERY before signal: 0
-RESULT: Hello, MariaDB! doubled=42 nudges=1
-STATUS: COMPLETED
-smoke exit: see RESULT/STATUS lines above
+## web UI API
+  list count: 2
+  history events (mariadb-smoke-1): 30
 
-## visibility queries (rows matched)
-  MdbKeyword = 'mdb-keyword'                     => 3
-  MdbInt = 42                                    => 3
-  MdbDouble = 1.5                                => 4
-  MdbBool = true                                 => 5
-  MdbBool = false                                => 1
-  MdbDatetime = '2026-09-13T05:06:07Z'           => 3
-  MdbKeywordList = 'alpha'                       => 4
-  MdbKeywordList IN ('beta','zzz')               => 5
-  MdbKeywordList = 'nothere'                     => 0
-  MdbText = 'brave'                              => 4
+## agentic AI sample, both variants, on this MariaDB server
+  litellm-gpt-oss-workflow-id    WORKFLOW_EXECUTION_STATUS_COMPLETED 29 events
+  mdb-async-1                    WORKFLOW_EXECUTION_STATUS_COMPLETED 17 events
 
-## web UI API against the MariaDB-backed server
-  namespaces: ['temporal-system', 'default']
-  workflow list count: 38
-  history events for mariadb-smoke-1: 30
+  unmodified sample final output (tool fails -- openai-agents 0.19.4, not the store):
+    Result: Clouds veil bright Tokyo  
+    Tool fails, silence fills deep air  
+    Rain or sun unknown.
 
-## agentic AI sample history still in MariaDB
-  litellm-gpt-oss-workflow-id  WORKFLOW_EXECUTION_STATUS_COMPLETED 35 events
-  mdb-async-1                  WORKFLOW_EXECUTION_STATUS_COMPLETED 17 events
+  async-tool variant, tool call recorded in MariaDB history:
+    tool output: The weather in Tokyo is sunny.

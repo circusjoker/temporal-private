@@ -129,8 +129,9 @@ API key. Ran with `gpt-oss:20b`.
   `WORKFLOW_EXECUTION_COMPLETED`, but
   the agent's `get_weather` tool call failed and the haiku said so. **Event and
   round-trip counts vary run to run** because the model decides how many turns to take:
-  my run was 23 events / 3 model activities, verdict 04's re-run was 35 / 5. Both
-  COMPLETED. Do not treat those numbers as a fixed expectation.
+  observed so far: 23 events / 3 model activities, 35 / 5 (verdict 04), and 29 on the
+  final re-run. All COMPLETED. Do not treat those numbers as a fixed expectation —
+  three runs, three counts.
 - **Cause (not ours):** openai-agents 0.19.4 runs *synchronous* `@function_tool`s through
   `asyncio.to_thread` -> `loop.run_in_executor`, which Temporal's deterministic workflow
   event loop rejects with `NotImplementedError`. Surfaced by re-running the sample with
