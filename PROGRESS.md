@@ -160,3 +160,30 @@ the unmodified tree (verified with `git stash`) — no Cassandra is running here
   `--schema-name mariadb/v11/visibility` installs 5 tables at version 1.0, and
   `temporal-sql-tool setup-schema --help` now lists `mariadb/v11/temporal` and
   `mariadb/v11/visibility`.
+
+### Functional tests (the real in-process cluster), MariaDB vs MySQL
+`tests/testcore/flag.go` now accepts `-persistenceDriver=mariadb` and counts it as a SQL
+visibility store, so the functional suites can run against it. The three visibility
+suites -- the part most at risk from the rewritten schema and query converter -- were run
+against both engines:
+
+```
+CGO_ENABLED=0 go test ./tests/ -tags disable_grpc_modules,test_dep \
+  -run 'TestAdvancedVisibilitySuite$|TestAdvancedVisibilitySuiteLegacy$|TestWorkflowVisibilityTestSuite$' \
+  -persistenceType=sql -persistenceDriver=<driver> -count=1 -v
+```
+
+| driver | suites | subtests | fail | skip |
+|---|---|---|---|---|
+| mariadb | 3 PASS | 65 PASS | 0 | 2 |
+| mysql8 (MYSQL_PORT=3307) | 3 PASS | 65 PASS | 0 | 2 |
+
+Same two skips on both (`TestListWorkflow_OrderBy` in each of the two advanced-visibility
+suites) — the ORDER BY restriction that is store-agnostic, noted above.
+
+`TestAdvancedVisibilitySuiteLegacy` matters here: it forces the *legacy* query converter
+path, which the unified converter's default (`visibilityEnableUnifiedQueryConverter=true`)
+otherwise hides. Both MariaDB converters are therefore exercised.
+
+Note: functional tests need `-tags test_dep`; without it every suite panics with
+"testhooks.Set called but TestHooks are not enabled", regardless of driver.
