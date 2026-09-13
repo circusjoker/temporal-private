@@ -20,10 +20,23 @@ func TestSchemaDirs(t *testing.T) {
 		"mysql/v8/visibility",
 	}, dirs)
 
+	dirs = PathsByDir("mariadb")
+	requireContains(t, []string{
+		"mariadb/v10/temporal",
+		"mariadb/v10/visibility",
+	}, dirs)
+
 	dirs = PathsByDir("postgresql")
 	requireContains(t, []string{
 		"postgresql/v12/temporal",
 		"postgresql/v12/visibility",
+	}, dirs)
+
+	dirs = PathsByDB("sql")
+	requireContains(t, []string{
+		"mysql/v8/temporal",
+		"mariadb/v10/temporal",
+		"postgresql/v12/temporal",
 	}, dirs)
 }
 
