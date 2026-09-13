@@ -268,4 +268,5 @@ sed -n '3937,3970p' service/frontend/workflow_handler.go
 - [請求流程導覽](./request-flow.zh-TW.md)——本文第 3.3 節的完整程式碼路徑
 - [資料模型導覽](./data-model.zh-TW.md)——本文第 6 節提到的 shard 與 `range_id` fencing
 - [執行期拓樸導覽](./runtime-topology.zh-TW.md)——本文第 4 節 per-namespace worker 的分片方式
+- [開發流程導覽](./dev-workflow.zh-TW.md)——新增一個 RPC 要改哪些地方、產生碼怎麼重跑
 - [`docs/architecture/chasm.md`](./architecture/chasm.md)、[`docs/architecture/nexus.md`](./architecture/nexus.md)、[`docs/architecture/schedules.md`](./architecture/schedules.md)

@@ -6,6 +6,7 @@
 > 想知道「狀態存在哪、怎麼保證一致」請看 [資料模型與持久層導覽](./data-model.zh-TW.md)。
 > 想知道「跑起來之後長什麼樣、shard 歸誰管、設定從哪來」請看 [執行期拓樸導覽](./runtime-topology.zh-TW.md)。
 > 想知道「這台 server 到底提供哪些能力、哪個 RPC 由誰實作」請看 [能力地圖](./feature-map.zh-TW.md)。
+> 想知道「我要怎麼在本機跑起來、改一行程式碼要跑哪些指令」請看 [開發流程導覽](./dev-workflow.zh-TW.md)。
 
 ## 一句話總結
 
@@ -74,8 +75,11 @@ make fmt-imports     # 整理 import
 make proto           # 重新產生 proto 相關程式碼
 ```
 
-測試相關約定（見 `AGENTS.md`）：跑測試一律加 `-tags test_dep`；整合測試才加 `integration` tag；
-單元測試偏好 `require` 而非 `assert`，用 `require.Eventually` 取代 `time.Sleep`（linter 會擋）。
+測試相關約定（見 `AGENTS.md` 與 `docs/development/testing.md`）：跑測試一律加 `-tags test_dep`
+（Makefile 實際帶的是 `disable_grpc_modules,test_dep`）；單元測試偏好 `require` 而非 `assert`；
+`time.Sleep` 被 linter 直接禁止，要改用 `common/testing/await` 的 `await.Require` / `await.RequireTrue`。
+注意 `AGENTS.md` 提到的 `integration` build tag 在現行程式碼中已不存在（repo 內沒有任何 `//go:build integration`）——
+integration 測試是靠**目錄**而非 build tag 區分的。完整流程見 [開發流程導覽](./dev-workflow.zh-TW.md)。
 
 ## 建議的閱讀順序
 
@@ -83,8 +87,9 @@ make proto           # 重新產生 proto 相關程式碼
 2. [`docs/data-model.zh-TW.md`](./data-model.zh-TW.md) — 狀態存在哪張表、shard 與 range_id 怎麼保證一致性。
 3. [`docs/runtime-topology.zh-TW.md`](./runtime-topology.zh-TW.md) — 一個 binary 怎麼變成叢集：fx 組裝、membership、shard 擁有權、兩套設定、優雅上下線。
 4. [`docs/feature-map.zh-TW.md`](./feature-map.zh-TW.md) — 對外的三個 gRPC service 與兩個 HTTP 面、能力分類、系統功能本身就是 Workflow 的 dogfooding 設計。
-5. `docs/architecture/README.md` — 系統全貌與 Workflow/Activity Task 流程。
-6. `docs/architecture/workflow-lifecycle.md` — 一個 Workflow 從 start 到 complete 的序列圖。
-7. `docs/architecture/history-service.md`、`matching-service.md` — 兩個最核心服務的內部機制。
-8. `docs/architecture/chasm.md` — 新一代狀態機框架（理解 repo 未來走向的關鍵）。
-9. `service/history/README.md`、`service/matching/fairness.md` — 更貼近程式碼的說明。
+5. [`docs/dev-workflow.zh-TW.md`](./dev-workflow.zh-TW.md) — 本機跑起來、build tag、四層測試、程式碼生成、lint 分層、CI 的測試取捨。
+6. `docs/architecture/README.md` — 系統全貌與 Workflow/Activity Task 流程。
+7. `docs/architecture/workflow-lifecycle.md` — 一個 Workflow 從 start 到 complete 的序列圖。
+8. `docs/architecture/history-service.md`、`matching-service.md` — 兩個最核心服務的內部機制。
+9. `docs/architecture/chasm.md` — 新一代狀態機框架（理解 repo 未來走向的關鍵）。
+10. `service/history/README.md`、`service/matching/fairness.md` — 更貼近程式碼的說明。

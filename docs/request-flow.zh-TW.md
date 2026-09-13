@@ -123,3 +123,4 @@ make functional-test
 - `docs/architecture/message-protocol.md` — `COMMAND_TYPE_PROTOCOL_MESSAGE` 背後的機制
 - [`docs/runtime-topology.zh-TW.md`](./runtime-topology.zh-TW.md) — 本文裡的跨服務呼叫實際上怎麼找到對方的主機
 - [`docs/feature-map.zh-TW.md`](./feature-map.zh-TW.md) — 本文追的是 Start 這一條路徑，那裡列出另外一百多個 RPC 各自通往哪裡
+- [`docs/dev-workflow.zh-TW.md`](./dev-workflow.zh-TW.md) — 想在本文這條路徑上動手改，先看這裡的測試與 lint 流程
