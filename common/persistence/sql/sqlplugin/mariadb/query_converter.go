@@ -11,10 +11,10 @@ import (
 	"go.temporal.io/server/common/searchattribute/sadefs"
 )
 
-// closeTimeOrMaxColumnName is a persistent generated column on executions_visibility holding
+// CloseTimeOrMaxColumnName names a persistent generated column on executions_visibility holding
 // `coalesce(close_time, '9999-12-31 23:59:59')`. MariaDB has no functional indexes, so the
 // sort/pagination key must be a real column for the visibility indexes to be usable.
-const closeTimeOrMaxColumnName = "close_time_or_max"
+const CloseTimeOrMaxColumnName = "close_time_or_max"
 
 type (
 	// jsonContainsExpr stands in for MySQL's `<value> member of (<json array>)`, which MariaDB
@@ -55,7 +55,7 @@ func (c *queryConverter) GetDatetimeFormat() string {
 // paginated by. Unlike MySQL, which evaluates the coalesce inline, MariaDB reads the
 // pre-materialized generated column so the query can use an index.
 func (c *queryConverter) GetCoalesceCloseTimeExpr() sqlparser.Expr {
-	return query.NewColName(closeTimeOrMaxColumnName)
+	return query.NewColName(CloseTimeOrMaxColumnName)
 }
 
 func (c *queryConverter) ConvertKeywordListComparisonExpr(
