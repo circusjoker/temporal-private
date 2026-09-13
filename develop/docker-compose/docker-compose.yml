@@ -21,6 +21,11 @@ services:
       # Host 3307, not 3306: mysql above already binds 3306, and `docker compose up`
       # must be able to start both. MARIADB_PORT defaults to 3307 to match.
       - "3307:3306"
+    # Each Temporal cluster holds maxConns + maxConns(visibility) connections, and
+    # the functional suite runs many clusters at once. MariaDB's default of 151
+    # is not enough: the suite fails with "no usable database connection found"
+    # and MariaDB reports Connection_errors_max_connections climbing.
+    command: --max-connections=1000
     environment:
       MARIADB_ROOT_PASSWORD: root
     volumes:

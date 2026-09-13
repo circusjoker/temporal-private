@@ -362,3 +362,46 @@ functional visibility suites        3 suites / 65 subtests / 0 FAIL
 The MySQL container is **only** needed to run the `TestMySQL*` control suites — with it
 stopped those fail to connect, which is expected, not a regression. Nothing about running
 Temporal on MariaDB requires it.
+
+### 12 — KeywordList search attributes are indexed again
+MariaDB has no multi-valued indexes, so the 11 `CAST(col AS CHAR(255) ARRAY)` indexes
+MySQL uses for KeywordList attributes could not be created and every such predicate
+scanned. Replaced with a normalized side table, `keyword_list_search_attributes`
+(visibility schema 1.1), one row per (execution, attribute, value).
+
+**Maintained transactionally, not as a cache.** MariaDB now owns its visibility write
+path (`sqlplugin/mariadb/visibility.go`) precisely so the side table commits with the row
+it describes. Visibility upserts are version-guarded — a stale upsert is a no-op — so the
+stored `_version` is read back inside the transaction and the index is only rebuilt when
+our write is the one that landed. Otherwise the index would describe a row that is not
+there.
+
+**Queries emit both predicates, ANDed**, and let the optimizer choose. Measured on
+200,000 executions in one namespace (`kltest`, 400,000 index rows):
+
+| predicate selectivity | side table only | JSON scan only | both (shipped) |
+|---|---|---|---|
+| 1 match | 5.7 ms | **1272.8 ms** (191,845 rows scanned) | **0.78 ms** |
+| ~4,000 matches | 43.3 ms | 9.5 ms | 33.5 ms |
+| 200,000 matches | 1.2 ms | 0.79 ms | 1.10 ms |
+
+Neither shape is fast on its own: the side table wins when the value is rare, and the
+ordered index wins when it is common because `ORDER BY … LIMIT` stops early. Emitting
+both turns the unbounded worst case (which grows with table size) into sub-millisecond,
+at the cost of ~3x on the middle band, and the JSON predicate still decides correctness —
+a spurious index row cannot produce a wrong answer.
+
+Negated predicates emit the JSON half alone: `NOT (json AND side)` is not the negation
+wanted, and a NOT cannot use the index anyway. Values longer than the column's
+VARCHAR(255) are not indexed and are not asked of the index, on either side.
+
+`TestKeywordListAttrsMatchSchema` fails if the attribute list drifts from the schema —
+drift is silent and would just stop indexing a column.
+
+### Connection limits — found by running the full functional suite
+The first full-suite run failed with `no usable database connection found`. MariaDB's
+default `max_connections` is 151; the suite drove `Max_used_connections` to 152 and
+`Connection_errors_max_connections` to 37. Each Temporal cluster holds
+`maxConns` + visibility `maxConns` (20 + 2 in the dev config), and the suite runs many at
+once. `develop/docker-compose` now sets `--max-connections=1000`. **Worth sizing for
+real deployments**: connections are per host process, not per cluster.

@@ -12,4 +12,6 @@ const Version = "1.19"
 // The visibility schema had to be rewritten for MariaDB (no expression indexes,
 // no multi-valued indexes, no `->`/`->>` operators), so it starts its own
 // lineage at 1.0 rather than tracking MySQL's visibility versions.
-const VisibilityVersion = "1.0"
+// 1.1 adds keyword_list_search_attributes, which stands in for the multi-valued
+// indexes MariaDB does not have.
+const VisibilityVersion = "1.1"

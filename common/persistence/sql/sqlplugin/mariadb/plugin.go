@@ -21,8 +21,13 @@
 package mariadb
 
 import (
+	"go.temporal.io/server/common/config"
+	"go.temporal.io/server/common/log"
+	"go.temporal.io/server/common/metrics"
 	"go.temporal.io/server/common/persistence/sql"
+	"go.temporal.io/server/common/persistence/sql/sqlplugin"
 	"go.temporal.io/server/common/persistence/sql/sqlplugin/mysql"
+	"go.temporal.io/server/common/resolver"
 	mariadbschemaV11 "go.temporal.io/server/schema/mariadb/v11"
 )
 
@@ -50,6 +55,38 @@ func Flavor() mysql.Flavor {
 	}
 }
 
+// plugin defers to the shared MySQL-protocol plugin and decorates the db it
+// returns, so MariaDB owns its visibility writes without sqlplugin/mysql needing
+// to know about them.
+type plugin struct {
+	base           sqlplugin.Plugin
+	queryConverter sqlplugin.VisibilityQueryConverter
+}
+
+var _ sqlplugin.Plugin = (*plugin)(nil)
+
+func (p *plugin) GetVisibilityQueryConverter() sqlplugin.VisibilityQueryConverter {
+	return p.queryConverter
+}
+
+func (p *plugin) CreateDB(
+	dbKind sqlplugin.DbKind,
+	cfg *config.SQL,
+	r resolver.ServiceResolver,
+	logger log.Logger,
+	metricsHandler metrics.Handler,
+) (sqlplugin.GenericDB, error) {
+	base, err := p.base.CreateDB(dbKind, cfg, r, logger, metricsHandler)
+	if err != nil {
+		return nil, err
+	}
+	return wrapDB(base)
+}
+
 func init() {
-	sql.RegisterPlugin(PluginName, mysql.NewPlugin(Flavor(), mysql.NewQueryConverter(dialect{})))
+	queryConverter := mysql.NewQueryConverter(dialect{})
+	sql.RegisterPlugin(PluginName, &plugin{
+		base:           mysql.NewPlugin(Flavor(), queryConverter),
+		queryConverter: queryConverter,
+	})
 }
