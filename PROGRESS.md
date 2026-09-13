@@ -370,12 +370,11 @@ MySQL uses for KeywordList attributes could not be created and every such predic
 scanned. Replaced with a normalized side table, `keyword_list_search_attributes`
 (visibility schema 1.1), one row per (execution, attribute, value).
 
-**Maintained transactionally, not as a cache.** MariaDB now owns its visibility write
-path (`sqlplugin/mariadb/visibility.go`) precisely so the side table commits with the row
-it describes. Visibility upserts are version-guarded — a stale upsert is a no-op — so the
-stored `_version` is read back inside the transaction and the index is only rebuilt when
-our write is the one that landed. Otherwise the index would describe a row that is not
-there.
+**Maintained transactionally, not as a cache.** MariaDB owns its visibility write path
+(`sqlplugin/mariadb/visibility.go`) precisely so the side table commits with the row it
+describes. It is rebuilt from the `search_attributes` **read back after the write**, one
+source table per attribute, with no version guard — see the corrections section below for
+why the original version-guard design was wrong and had to go.
 
 **Queries emit both predicates, ANDed**, and let the optimizer choose. Measured on
 200,000 executions in one namespace (`kltest`, 400,000 index rows):
@@ -460,7 +459,21 @@ skipped. Two comments pointed at a nonexistent `keyword_list_index.go`.
 - Storage: ≈0.7 MB per 1,000 executions at 2 keyword values each (the side table is
   effectively stored twice — the PK and `by_attr_value` cover the same four columns).
   Bounded by retention, but it is new storage.
-- Write cost measured by the evaluator: ~33% throughput and ~50-65% p50 latency, with
-  **0 deadlocks across ~24,000 contended side-table writes**.
+- Write cost. The derive-from-stored rewrite made this **worse than first measured**,
+  because the extra read is now a SELECT with two LEFT JOINs rather than a single-column
+  lookup. Re-measured by the evaluator against the shipped code (mariadb plugin vs mysql8
+  plugin, same engine, both at schema 1.1):
+
+  | shape | conc | with side table | without | delta |
+  |---|---|---|---|---|
+  | replace at higher version | 16 | 1510/s, p50 7.4ms | 3212/s, p50 4.2ms | **-53% / +76%** |
+  | contended | 16 | 2057/s, p50 5.8ms | 4178/s, p50 2.8ms | **-51% / +107%** |
+  | fresh inserts | 16 | — | — | -22..24% |
+
+  The earlier "~33% throughput / ~50-65% p50" figures were measured against the
+  *previous* write path and no longer apply. Still **0 deadlocks and 0 lock-wait
+  timeouts across ~45,000 side-table writes**. At 100k workflows/day — a few visibility
+  writes per second against a floor of ~1500/s here — the absolute headroom is large, but
+  the relative cost is real and lands on the shape visibility does most.
 - Unproven: optimizer plan stability as statistics drift, cold-cache behaviour, rolling
   upgrades where 1.0-aware and 1.1-aware servers write the same database.

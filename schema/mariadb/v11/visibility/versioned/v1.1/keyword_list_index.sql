@@ -6,10 +6,16 @@
 -- the same transaction as the visibility row it describes, so it is an index rather
 -- than a cache. See common/persistence/sql/sqlplugin/mariadb/keyword_list.go.
 --
+-- IF NOT EXISTS on both statements, and INSERT IGNORE in the backfill, so the
+-- whole migration is re-runnable. The schema tool bumps the version in a separate
+-- statement and only tolerates "already exists" and "not found" errors, so a
+-- failure partway through would otherwise wedge the database at 1.0 forever:
+-- re-running died on `Duplicate key name 'by_attr_value'` (error 1061).
+--
 -- `attr` is the physical column name the value would have lived in on MySQL --
 -- BuildIds, KeywordList01, TemporalKeywordList01 and so on -- so one table covers
 -- executions_visibility, custom_search_attributes and chasm_search_attributes.
-CREATE TABLE keyword_list_search_attributes (
+CREATE TABLE IF NOT EXISTS keyword_list_search_attributes (
   namespace_id  CHAR(64)     NOT NULL,
   run_id        CHAR(64)     NOT NULL,
   attr          VARCHAR(64)  NOT NULL,
@@ -20,4 +26,4 @@ CREATE TABLE keyword_list_search_attributes (
 -- The lookup index. Leading namespace_id matches how every visibility query is
 -- scoped; run_id is last so the index covers the semi-join back to
 -- executions_visibility without touching the table.
-CREATE INDEX by_attr_value ON keyword_list_search_attributes (namespace_id, attr, value, run_id);
+CREATE INDEX IF NOT EXISTS by_attr_value ON keyword_list_search_attributes (namespace_id, attr, value, run_id);

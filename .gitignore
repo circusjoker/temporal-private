@@ -48,3 +48,8 @@
 
 # Ignoring AI agent files
 .agents/
+
+__pycache__/
+*.pyc
+# sqlite databases the persistence tests leave behind
+common/persistence/tests/test_*

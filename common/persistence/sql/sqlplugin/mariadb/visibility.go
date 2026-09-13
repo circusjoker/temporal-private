@@ -24,8 +24,10 @@ import (
 // transaction as the row it indexes, and mysql's methods open and commit their
 // own transaction, so there is nothing to hook into from outside.
 //
-// The SQL for the three shared tables is the same as MySQL's; only the extra
-// table and the version guard around it are new.
+// The SQL for the three shared tables is the same as MySQL's. What is new is the
+// extra table, and that it is rebuilt from the search attributes read back after
+// the write rather than from the row we tried to write -- there is no version
+// guard, deliberately: see writeKeywordListRows.
 
 var (
 	templateInsertWorkflowExecution = fmt.Sprintf(

@@ -13,10 +13,16 @@
 -- Values longer than the column are skipped, matching what the write path and
 -- the query converter do -- nothing asks the index about a value it cannot hold.
 --
+-- INSERT IGNORE, not INSERT, so the migration is re-runnable. The schema tool
+-- bumps the version in a separate statement, so a failure between the backfill
+-- and the bump leaves rows behind; a plain INSERT would then die on a duplicate
+-- primary key and the database would stay at 1.0 permanently, because the tool
+-- only tolerates "already exists" and "not found" errors.
+--
 -- NOTE for large installations: this is a single statement over the whole
 -- visibility table. On a big database run it during a maintenance window, or
 -- split it by namespace_id, rather than letting the schema tool do it inline.
-INSERT INTO keyword_list_search_attributes (namespace_id, run_id, attr, value)
+INSERT IGNORE INTO keyword_list_search_attributes (namespace_id, run_id, attr, value)
 SELECT DISTINCT namespace_id, run_id, attr, value FROM (
   SELECT ev.namespace_id AS namespace_id, ev.run_id AS run_id,
          'TemporalChangeVersion' AS attr, jt.value AS value
