@@ -39,6 +39,12 @@ CREATE TABLE current_executions(
 );
 `
 
+	// MariaDB reuses the MySQL test query -- it is plain DDL both engines accept.
+	testMariaDBExecutionSchemaFile        = "../../schema/mariadb/v11/temporal/schema.sql"
+	testMariaDBVisibilitySchemaFile       = "../../schema/mariadb/v11/visibility/schema.sql"
+	testMariaDBExecutionSchemaVersionDir  = "../../schema/mariadb/v11/temporal/versioned"
+	testMariaDBVisibilitySchemaVersionDir = "../../schema/mariadb/v11/visibility/versioned"
+
 	testPostgreSQLExecutionSchemaFile        = "../../schema/postgresql/v12/temporal/schema.sql"
 	testPostgreSQLVisibilitySchemaFile       = "../../schema/postgresql/v12/visibility/schema.sql"
 	testPostgreSQLExecutionSchemaVersionDir  = "../../schema/postgresql/v12/temporal/versioned"

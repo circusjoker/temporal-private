@@ -192,3 +192,22 @@ otherwise hides. Both MariaDB converters are therefore exercised.
 
 Note: functional tests need `-tags test_dep`; without it every suite panics with
 "testhooks.Set called but TestHooks are not enabled", regardless of driver.
+
+### temporal-sql-tool CLI coverage
+`tools/tests/mariadb_cli_test.go` mirrors `mysql_cli_test.go`. All 5 suites pass against
+MariaDB (`go test ./tools/tests/ -run TestMariaDB -count=1 -v`): connection, handler
+config validation, `TestSetupSchema`, `TestUpdateSchema` + both dry-runs (which walk the
+whole versioned migration chain), and `TestVerifyCompatibleVersion` (which exercises the
+schema-version check the server does at boot).
+
+### Audit of remaining plugin-name switches
+Grepped every `mysql.PluginName` / `"mysql8"` site to find dispatches that would skip
+MariaDB:
+- `service/frontend/operator_handler.go` (add/remove search attributes) asks only
+  "is this Elasticsearch?" and otherwise takes the SQL path, so `mariadb` needs nothing —
+  consistent with the 7 custom search attributes registering successfully end to end.
+- `common/persistence/persistence-tests/persistence_test_base.go` had two switches that
+  `panic("unknown sql store driver")`. They are only reached when DBPort/DBHost are
+  unset, which `GetMariaDBTestClusterOption()` never leaves unset, so nothing was broken
+  — but the latent panic is closed anyway.
+- Everything else is test fixtures or the `--pl` flag default.
