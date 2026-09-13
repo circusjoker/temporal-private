@@ -146,6 +146,8 @@ COVERPKG_FLAG 		    = -coverpkg=./...
 # DB
 SQL_USER ?= temporal
 SQL_PASSWORD ?= temporal
+# MariaDB listens on 3307 in develop/docker-compose so it can run beside MySQL.
+MARIADB_PORT ?= 3307
 
 # Only prints output if the exit code is non-zero
 define silent_exec
@@ -658,14 +660,14 @@ install-schema-mysql8: temporal-sql-tool
 
 install-schema-mariadb: temporal-sql-tool
 	@printf $(COLOR) "Install MariaDB schema..."
-	./temporal-sql-tool -u $(SQL_USER) --pw $(SQL_PASSWORD) --pl mariadb --db $(TEMPORAL_DB) drop -f
-	./temporal-sql-tool -u $(SQL_USER) --pw $(SQL_PASSWORD) --pl mariadb --db $(TEMPORAL_DB) create
-	./temporal-sql-tool -u $(SQL_USER) --pw $(SQL_PASSWORD) --pl mariadb --db $(TEMPORAL_DB) setup-schema -v 0.0
-	./temporal-sql-tool -u $(SQL_USER) --pw $(SQL_PASSWORD) --pl mariadb --db $(TEMPORAL_DB) update-schema -d ./schema/mariadb/v11/temporal/versioned
-	./temporal-sql-tool -u $(SQL_USER) --pw $(SQL_PASSWORD) --pl mariadb --db $(VISIBILITY_DB) drop  -f
-	./temporal-sql-tool -u $(SQL_USER) --pw $(SQL_PASSWORD) --pl mariadb --db $(VISIBILITY_DB) create
-	./temporal-sql-tool -u $(SQL_USER) --pw $(SQL_PASSWORD) --pl mariadb --db $(VISIBILITY_DB) setup-schema -v 0.0
-	./temporal-sql-tool -u $(SQL_USER) --pw $(SQL_PASSWORD) --pl mariadb --db $(VISIBILITY_DB) update-schema -d ./schema/mariadb/v11/visibility/versioned
+	./temporal-sql-tool -u $(SQL_USER) --pw $(SQL_PASSWORD) -p $(MARIADB_PORT) --pl mariadb --db $(TEMPORAL_DB) drop -f
+	./temporal-sql-tool -u $(SQL_USER) --pw $(SQL_PASSWORD) -p $(MARIADB_PORT) --pl mariadb --db $(TEMPORAL_DB) create
+	./temporal-sql-tool -u $(SQL_USER) --pw $(SQL_PASSWORD) -p $(MARIADB_PORT) --pl mariadb --db $(TEMPORAL_DB) setup-schema -v 0.0
+	./temporal-sql-tool -u $(SQL_USER) --pw $(SQL_PASSWORD) -p $(MARIADB_PORT) --pl mariadb --db $(TEMPORAL_DB) update-schema -d ./schema/mariadb/v11/temporal/versioned
+	./temporal-sql-tool -u $(SQL_USER) --pw $(SQL_PASSWORD) -p $(MARIADB_PORT) --pl mariadb --db $(VISIBILITY_DB) drop  -f
+	./temporal-sql-tool -u $(SQL_USER) --pw $(SQL_PASSWORD) -p $(MARIADB_PORT) --pl mariadb --db $(VISIBILITY_DB) create
+	./temporal-sql-tool -u $(SQL_USER) --pw $(SQL_PASSWORD) -p $(MARIADB_PORT) --pl mariadb --db $(VISIBILITY_DB) setup-schema -v 0.0
+	./temporal-sql-tool -u $(SQL_USER) --pw $(SQL_PASSWORD) -p $(MARIADB_PORT) --pl mariadb --db $(VISIBILITY_DB) update-schema -d ./schema/mariadb/v11/visibility/versioned
 
 install-schema-postgresql: install-schema-postgresql12
 

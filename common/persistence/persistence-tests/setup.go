@@ -19,8 +19,9 @@ const (
 	testMySQLPassword  = "temporal"
 	testMySQLSchemaDir = "schema/mysql/v8"
 
-	// MariaDB reuses the MySQL credentials and port; only the plugin and the
-	// visibility schema differ.
+	// MariaDB reuses the MySQL credentials but has its own host/port env vars
+	// (MARIADB_SEEDS / MARIADB_PORT) so the two suites cannot be pointed at the
+	// same server by accident.
 	testMariaDBSchemaDir = "schema/mariadb/v11"
 
 	testPostgreSQLUser      = "temporal"
@@ -89,8 +90,8 @@ func GetMariaDBTestClusterOption() *TestBaseOptions {
 		DBName:          GenerateRandomDBName(),
 		DBUsername:      testMySQLUser,
 		DBPassword:      testMySQLPassword,
-		DBHost:          environment.GetMySQLAddress(),
-		DBPort:          environment.GetMySQLPort(),
+		DBHost:          environment.GetMariaDBAddress(),
+		DBPort:          environment.GetMariaDBPort(),
 		SchemaDir:       testMariaDBSchemaDir,
 		StoreType:       config.StoreTypeSQL,
 	}

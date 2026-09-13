@@ -1,12 +1,17 @@
 -- Temporal visibility schema for MariaDB.
 --
 -- Derived from schema/mysql/v8/visibility/schema.sql. MariaDB 11.4 differs from
--- MySQL 8 in four ways that matter here (each verified against mariadb:11.4):
+-- MySQL 8 in five ways that matter here (each verified against mariadb:11.4):
 --   1. no `->` / `->>` JSON operators  -> JSON_EXTRACT / JSON_UNQUOTE
---   2. JSON booleans extract as 1/0 via JSON_VALUE -> compare unquoted text
+--   2. JSON_VALUE returns 1/0 for a JSON boolean, so `JSON_VALUE(...) = 'true'`
+--      silently yields 0 -> booleans compare JSON_UNQUOTE(JSON_EXTRACT(...)) instead
 --   3. no expression indexes           -> close_time_or_max generated column
 --   4. no multi-valued (ARRAY) indexes -> KeywordList columns are unindexed
 --      (queried with JSON_CONTAINS / JSON_OVERLAPS; correct, but a table scan)
+--   5. the default utf8mb4 collation is PAD SPACE (utf8mb4_uca1400_ai_ci) where
+--      MySQL 8's is NO PAD, which would make values differing only by trailing
+--      spaces collide -> the database is created COLLATE utf8mb4_uca1400_nopad_ai_ci
+--      (see common/persistence/sql/sqlplugin/mysql/admin.go)
 -- Indexes dropped relative to MySQL: by_temporal_change_version, by_binary_checksums, by_build_ids, by_temporal_pause_info, by_temporal_reported_problems, by_used_deployment_versions, by_keyword_list_01, by_keyword_list_02, by_keyword_list_03, by_temporal_keyword_list_01, by_temporal_keyword_list_02
 
 CREATE TABLE executions_visibility (

@@ -18,7 +18,9 @@ services:
     image: mariadb:11.4
     container_name: temporal-dev-mariadb
     ports:
-      - "3306:3306"
+      # Host 3307, not 3306: mysql above already binds 3306, and `docker compose up`
+      # must be able to start both. MARIADB_PORT defaults to 3307 to match.
+      - "3307:3306"
     environment:
       MARIADB_ROOT_PASSWORD: root
     volumes:

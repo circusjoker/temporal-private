@@ -17,8 +17,9 @@ import (
 	"go.uber.org/zap/zaptest"
 )
 
-// MariaDB is exercised against the same host/port/credentials as MySQL; only the
-// plugin and the visibility schema differ.
+// MariaDB shares MySQL's test credentials but has its own MARIADB_SEEDS /
+// MARIADB_PORT env vars (default 3307), so MYSQL_PORT cannot silently point this
+// suite at a MySQL server -- which would pass and misreport what was tested.
 const (
 	testMariaDBClusterName = "temporal_mariadb_cluster"
 
@@ -59,8 +60,8 @@ func NewMariaDBConfig() *config.SQL {
 		User:     testMySQLUser,
 		Password: testMySQLPassword,
 		ConnectAddr: net.JoinHostPort(
-			environment.GetMySQLAddress(),
-			strconv.Itoa(environment.GetMySQLPort()),
+			environment.GetMariaDBAddress(),
+			strconv.Itoa(environment.GetMariaDBPort()),
 		),
 		ConnectProtocol: testMySQLConnectionProtocol,
 		PluginName:      mysql.PluginNameMariaDB,

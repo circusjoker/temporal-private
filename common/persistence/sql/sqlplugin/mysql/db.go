@@ -35,6 +35,9 @@ type flavor struct {
 	pluginName              string
 	schemaVersion           string
 	visibilitySchemaVersion string
+	// createDatabaseQuery differs because MariaDB's default utf8mb4 collation is
+	// PAD SPACE where MySQL's is NO PAD -- see admin.go.
+	createDatabaseQuery string
 }
 
 var (
@@ -42,11 +45,13 @@ var (
 		pluginName:              PluginName,
 		schemaVersion:           mysqlschemaV8.Version,
 		visibilitySchemaVersion: mysqlschemaV8.VisibilityVersion,
+		createDatabaseQuery:     createDatabaseQuery,
 	}
 	mariaDBFlavor = flavor{
 		pluginName:              PluginNameMariaDB,
 		schemaVersion:           mariadbschemaV11.Version,
 		visibilitySchemaVersion: mariadbschemaV11.VisibilityVersion,
+		createDatabaseQuery:     createDatabaseQueryMariaDB,
 	}
 )
 

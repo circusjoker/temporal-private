@@ -27,6 +27,13 @@ const (
 	mySQLPortEnv     = "MYSQL_PORT"
 	mySQLDefaultPort = 3306
 
+	// MariaDB gets its own env vars rather than borrowing MySQL's: sharing them
+	// would let MYSQL_PORT silently point the MariaDB suite at a MySQL server,
+	// which would still pass and lie about what it tested.
+	mariaDBSeedsEnv    = "MARIADB_SEEDS"
+	mariaDBPortEnv     = "MARIADB_PORT"
+	mariaDBDefaultPort = 3307
+
 	esSeedsEnv       = "ES_SEEDS"
 	esPortEnv        = "ES_PORT"
 	esVersion        = "ES_VERSION"
@@ -125,6 +132,29 @@ func GetMySQLAddress() string {
 		addr = GetLocalhostIP()
 	}
 	return addr
+}
+
+// GetMariaDBAddress returns the MariaDB address
+func GetMariaDBAddress() string {
+	addr := os.Getenv(mariaDBSeedsEnv)
+	if addr == "" {
+		addr = GetLocalhostIP()
+	}
+	return addr
+}
+
+// GetMariaDBPort returns the MariaDB port
+func GetMariaDBPort() int {
+	port := os.Getenv(mariaDBPortEnv)
+	if port == "" {
+		return mariaDBDefaultPort
+	}
+	p, err := strconv.Atoi(port)
+	if err != nil {
+		//nolint:forbidigo // used in test code only
+		panic(fmt.Sprintf("error getting env %v", mariaDBPortEnv))
+	}
+	return p
 }
 
 // GetMySQLPort return the MySQL port

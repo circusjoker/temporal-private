@@ -153,8 +153,10 @@ func NewTestBaseWithSQL(options *TestBaseOptions) *TestBase {
 
 	if options.DBPort == 0 {
 		switch options.SQLDBPluginName {
-		case mysql.PluginName, mysql.PluginNameMariaDB:
+		case mysql.PluginName:
 			options.DBPort = environment.GetMySQLPort()
+		case mysql.PluginNameMariaDB:
+			options.DBPort = environment.GetMariaDBPort()
 		case postgresql.PluginName, postgresql.PluginNamePGX:
 			options.DBPort = environment.GetPostgreSQLPort()
 		case sqlite.PluginName:
@@ -165,8 +167,10 @@ func NewTestBaseWithSQL(options *TestBaseOptions) *TestBase {
 	}
 	if options.DBHost == "" {
 		switch options.SQLDBPluginName {
-		case mysql.PluginName, mysql.PluginNameMariaDB:
+		case mysql.PluginName:
 			options.DBHost = environment.GetMySQLAddress()
+		case mysql.PluginNameMariaDB:
+			options.DBHost = environment.GetMariaDBAddress()
 		case postgresql.PluginName, postgresql.PluginNamePGX:
 			options.DBHost = environment.GetPostgreSQLAddress()
 		case sqlite.PluginName:

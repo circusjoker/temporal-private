@@ -10,14 +10,18 @@ import (
 
 // PluginNameMariaDB is the name of the MariaDB plugin.
 //
-// MariaDB speaks the MySQL wire protocol and accepts the whole execution
-// (non-visibility) schema unchanged, so it reuses this package rather than
-// duplicating it -- the same way the postgresql package hosts both the pq and
-// pgx plugins. The differences are confined to:
+// MariaDB speaks the MySQL wire protocol and shares every CRUD statement in this
+// package, so it reuses it rather than duplicating it -- the same way the
+// postgresql package hosts both the pq and pgx plugins. The differences are
+// confined to:
 //
 //   - the visibility schema (schema/mariadb/v11/visibility), because MariaDB
 //     11.4 has no expression indexes, no multi-valued (ARRAY) indexes and no
-//     `->` / `->>` JSON operators; and
+//     `->` / `->>` JSON operators;
+//   - three cluster_membership columns in the execution schema, which are
+//     TIMESTAMP(6) because MariaDB truncates sub-second values where MySQL
+//     rounds them (see schema/mariadb/v11/temporal/schema.sql);
+//   - the database collation, pinned to NO PAD in admin.go; and
 //   - the KeywordList and close-time SQL emitted by the query converter below.
 //
 // Verified against mariadb:11.4.

@@ -1,7 +1,7 @@
 package tests
 
-// temporal-sql-tool CLI coverage for the mariadb plugin. Mirrors mysql_cli_test.go;
-// MariaDB shares the MySQL host/port environment variables.
+// temporal-sql-tool CLI coverage for the mariadb plugin. Mirrors mysql_cli_test.go,
+// against MARIADB_SEEDS / MARIADB_PORT rather than the MySQL ones.
 
 import (
 	"strconv"
@@ -17,8 +17,8 @@ import (
 func TestMariaDBConnTestSuite(t *testing.T) {
 	t.Parallel()
 	suite.Run(t, clitest.NewSQLConnTestSuite(
-		environment.GetMySQLAddress(),
-		strconv.Itoa(environment.GetMySQLPort()),
+		environment.GetMariaDBAddress(),
+		strconv.Itoa(environment.GetMariaDBPort()),
 		mysql.PluginNameMariaDB,
 		testMySQLQuery,
 	))
@@ -27,8 +27,8 @@ func TestMariaDBConnTestSuite(t *testing.T) {
 func TestMariaDBHandlerTestSuite(t *testing.T) {
 	t.Parallel()
 	suite.Run(t, clitest.NewHandlerTestSuite(
-		environment.GetMySQLAddress(),
-		strconv.Itoa(environment.GetMySQLPort()),
+		environment.GetMariaDBAddress(),
+		strconv.Itoa(environment.GetMariaDBPort()),
 		mysql.PluginNameMariaDB,
 	))
 }
@@ -36,8 +36,8 @@ func TestMariaDBHandlerTestSuite(t *testing.T) {
 func TestMariaDBSetupSchemaTestSuite(t *testing.T) {
 	t.Parallel()
 	suite.Run(t, clitest.NewSetupSchemaTestSuite(
-		environment.GetMySQLAddress(),
-		strconv.Itoa(environment.GetMySQLPort()),
+		environment.GetMariaDBAddress(),
+		strconv.Itoa(environment.GetMariaDBPort()),
 		mysql.PluginNameMariaDB,
 		testMySQLQuery,
 	))
@@ -46,8 +46,8 @@ func TestMariaDBSetupSchemaTestSuite(t *testing.T) {
 func TestMariaDBUpdateSchemaTestSuite(t *testing.T) {
 	t.Parallel()
 	suite.Run(t, clitest.NewUpdateSchemaTestSuite(
-		environment.GetMySQLAddress(),
-		strconv.Itoa(environment.GetMySQLPort()),
+		environment.GetMariaDBAddress(),
+		strconv.Itoa(environment.GetMariaDBPort()),
 		mysql.PluginNameMariaDB,
 		testMySQLQuery,
 		testMariaDBExecutionSchemaVersionDir,
@@ -60,8 +60,8 @@ func TestMariaDBUpdateSchemaTestSuite(t *testing.T) {
 func TestMariaDBVersionTestSuite(t *testing.T) {
 	t.Parallel()
 	suite.Run(t, clitest.NewVersionTestSuite(
-		environment.GetMySQLAddress(),
-		strconv.Itoa(environment.GetMySQLPort()),
+		environment.GetMariaDBAddress(),
+		strconv.Itoa(environment.GetMariaDBPort()),
 		mysql.PluginNameMariaDB,
 		testMariaDBExecutionSchemaFile,
 		testMariaDBVisibilitySchemaFile,

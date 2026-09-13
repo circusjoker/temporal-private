@@ -10,7 +10,8 @@ Acceptance:
 ## Done
 - [x] 00 Recon + environment baseline (mariadb:11.4 container `temporal-dev-mariadb`, port 3306, root/root)
 - [x] 01 Probed MariaDB 11.4 for every construct the MySQL8 schema uses (findings below)
-- [x] 02 `schema/mariadb/v11/` — temporal (verbatim MySQL v8) + rewritten visibility schema
+- [x] 02 `schema/mariadb/v11/` — temporal (the MySQL v8 schema apart from three
+      `cluster_membership` TIMESTAMP(6) columns) + rewritten visibility schema
 - [x] 03 `mariadb` plugin registered from the `mysql` package + dialect-split query converters
 - [x] 04 `make install-schema-mariadb` installs both schemas cleanly
       Proof: temporal db = 40 tables @ schema version 1.19,
@@ -33,16 +34,30 @@ Acceptance:
       (`TestRenameNamespaceCassandra`, `TestListConcreteExecutions` — skipped on
       MySQL too, so store-agnostic).
 
-## In progress
-- [~] 10 Evaluator verdicts — **1 of 3 delivered**
+- [x] 10 Evaluator verdicts — all 3 delivered, all NEEDS_WORK, all addressed
   - `evidence/verdicts/01-schema-and-plugin.md` — NEEDS_WORK on `0f09df5f8`. Both findings
     were real; both are fixed and re-verified in
     `evidence/verdicts/02-verdict-01-followup.md`.
-  - `evidence/verdicts/03-verdicts-not-delivered.md` — the other two evaluator runs
-    finished but their reports never reached this session, after four requests. Items
-    05-09 therefore have raw evidence (`evidence/acceptance-rerun.md`) but **no
-    independent review**. Re-dispatch them; see that file for the criteria and for the
-    instruction that makes delivery work.
+  - `evidence/verdicts/04-end-to-end.md` — NEEDS_WORK on items 05-09. E1-E4, E6, E7
+    PASS; E5 and E8 fail. Found a real committed port conflict and several claims that
+    outran their evidence.
+  - `evidence/verdicts/05-schema-and-plugin-2.md` — NEEDS_WORK on the schema/plugin.
+    S1-S6 PASS (exactly, in several cases); S7 fails on a stale claim shipped in source
+    and an incomplete enumeration that was missing the collation difference.
+  - `evidence/verdicts/06-verdicts-04-05-followup.md` — what was done about each finding,
+    with the re-verification after the fixes.
+  - `evidence/verdicts/03-verdicts-not-delivered.md` — kept as the record of the delivery
+    problem: both reports arrived only after four explicit `SendMessage` requests.
+
+## Next
+- Nothing blocking. Optional follow-ups, none of which affect the acceptance criteria:
+  - KeywordList search attributes are unindexed on MariaDB (11 dropped multi-valued
+    indexes). Correct but scanning; would need a companion table or a generated
+    normalized column to index.
+  - The Bool-on-off-contract-JSON divergence (verdict 05 S7-3) is unverified rather than
+    ruled out.
+  - MariaDB support is only exercised by the visibility functional suites; the rest of
+    `tests/` has never been run with `-persistenceDriver=mariadb`.
 
 ## Notes / findings
 - Recon (2026-09-13): main `schema/mysql/v8/temporal/schema.sql` (415 lines) uses **no**
@@ -96,9 +111,10 @@ Accepted unchanged (so no workaround was needed):
 - Dialect differences are injected, not inherited: `queryConverter` embeds a
   `visibilityDialect` interface. Go has no virtual dispatch, so overriding methods by
   embedding a struct would leave `BuildSelectStmt` calling the MySQL versions.
-- `schema/mariadb/v11/temporal` is a verbatim copy of `schema/mysql/v8/temporal`
-  (version lineage kept at 1.19). The visibility schema had to be rewritten, so it
-  starts its own lineage at 1.0.
+- `schema/mariadb/v11/temporal` is the MySQL v8 tree with a single deliberate change —
+  three `cluster_membership` columns are TIMESTAMP(6) (see the TIMESTAMP section below).
+  Version lineage kept at 1.19. The visibility schema had to be rewritten, so it starts
+  its own lineage at 1.0.
 - **Known limitation:** KeywordList search attributes (BuildIds, BinaryChecksums,
   TemporalChangeVersion, KeywordList01-03, ...) have no index on MariaDB. Queries on
   them are correct but scan. 11 indexes are dropped relative to MySQL; they are listed
@@ -110,22 +126,26 @@ The official sample is `samples-python/openai_agents/model_providers` (`run_gpt_
 API key. Ran with `gpt-oss:20b`.
 
 - **Unmodified sample against MariaDB:** workflow reached
-  `WORKFLOW_EXECUTION_COMPLETED` (23 events, 3 `invoke_model_activity` round trips), but
-  the agent's `get_weather` tool call failed and the haiku said so. (That was a 23-event
-  run; `eval-e2e` later re-ran the same unmodified sample, and the run now stored under
-  that workflow id is its 35-event one, also COMPLETED.)
+  `WORKFLOW_EXECUTION_COMPLETED`, but
+  the agent's `get_weather` tool call failed and the haiku said so. **Event and
+  round-trip counts vary run to run** because the model decides how many turns to take:
+  my run was 23 events / 3 model activities, verdict 04's re-run was 35 / 5. Both
+  COMPLETED. Do not treat those numbers as a fixed expectation.
 - **Cause (not ours):** openai-agents 0.19.4 runs *synchronous* `@function_tool`s through
   `asyncio.to_thread` -> `loop.run_in_executor`, which Temporal's deterministic workflow
   event loop rejects with `NotImplementedError`. Surfaced by re-running the sample with
   `failure_error_function=None`, which un-swallows the exception.
-- **Control:** the same unmodified sample on a stock `temporal server start-dev` (sqlite)
-  failed *worse* — the tool failed identically and the run died at
-  "Max turns (10) exceeded". So the tool failure is store-independent.
+- **Control:** the same unmodified sample on a stock `temporal server start-dev`
+  (in-memory) fails the tool identically, so the tool failure is store-independent.
+  My run additionally died at "Max turns (10) exceeded"; verdict 04 re-ran the control
+  and got a COMPLETED run of 41 events with no "Max turns" at all. **The tool failure
+  reproduces; the "died at Max turns" detail does not** — it was a single-run artifact
+  and should not have been stated as fact.
 - **Same agent, no Temporal:** tool call succeeds. Confirms model and Ollama are fine.
-- **With the tool changed to `async def` (one word):** full agentic loop on MariaDB,
-  17 events, `get_weather {"city":"Tokyo"}` -> "The weather in Tokyo is sunny." recorded
-  in MariaDB-backed history, `WORKFLOW_EXECUTION_COMPLETED`, haiku reflects the tool
-  result ("Bright sun bathes the city, Tokyo glows in golden light").
+- **With the tool made `async def` (plus a `-> str` annotation):** full agentic loop on
+  MariaDB, 17 events, `get_weather {"city":"Tokyo"}` -> "The weather in Tokyo is sunny."
+  recorded in MariaDB-backed history, `WORKFLOW_EXECUTION_COMPLETED`, haiku reflects the
+  tool result. Verdict 04 independently reproduced the 17 events.
 
 ### Not MariaDB-specific, confirmed
 - `ORDER BY` in a list query is rejected by `visibility_store.go:966` for *all* SQL
@@ -227,3 +247,50 @@ The server was stopped and restarted through the Makefile target (not the `--env
 used earlier): healthy in 2s, `workflow count` and a `MdbBool = true` filter both answered
 from MariaDB. `evidence/acceptance-rerun.md` is the raw output of a full acceptance pass
 against that server.
+
+### Corrections after verdicts 04 and 05 (both NEEDS_WORK)
+
+**Ports — a real defect, now fixed.** The `mariadb` service added to
+`develop/docker-compose/docker-compose.yml` bound host 3306, which `mysql` already
+binds, so `docker compose up` could not start both ("Bind for 0.0.0.0:3306 failed: port
+is already allocated"). MariaDB now uses host **3307**, and everything that talks to it
+follows: `config/development-mariadb.yaml`, `make install-schema-mariadb` (via a
+`MARIADB_PORT` variable), and the test harness.
+
+**`MYSQL_PORT` no longer selects the engine for both suites.** `MARIADB_SEEDS` /
+`MARIADB_PORT` (default 3307) now exist alongside the MySQL ones, and the MariaDB test
+config, cluster option and CLI tests use them. Previously `MYSQL_PORT=3307 go test -run
+TestMariaDB` would have run the MariaDB plugin against MySQL 8 and still reported 44/477
+— a passing result that lied about what it tested. Both suites now pass with **no env
+overrides at all**, each against its own engine.
+
+**Collation — a real semantic difference, now pinned.** MariaDB 11.4 defaults utf8mb4 to
+`utf8mb4_uca1400_ai_ci`, which is PAD SPACE; MySQL 8's `utf8mb4_0900_ai_ci` is NO PAD.
+Under PAD SPACE two values differing only by trailing whitespace are the *same* value, so
+a workflow id, namespace name or task queue name that MySQL accepts would collide on a
+unique key. Databases created for the `mariadb` plugin are now
+`COLLATE utf8mb4_uca1400_nopad_ai_ci`. Proof on the real `namespaces` table after
+reinstall: inserting `'padtest'` and then `'padtest '` now stores **both** rows, as MySQL
+does, where before the second was `ERROR 1062 Duplicate entry`. Accent- and
+case-insensitivity are unchanged. Requires MariaDB 10.10+.
+
+**Evidence destroyed mid-session (recorded, not hidden).** `make install-schema-mariadb`
+starts with `temporal-sql-tool ... drop -f`. Re-running it to apply the TIMESTAMP(6)
+change — and again for the collation change — wiped every workflow behind the item 06,
+07 and 08 numbers. Those items were re-derived by re-running, both by verdict 04 and
+here; the specific "list (27)" count in item 07 is gone and not reproducible. Any count
+in this file that came from a specific run should be read as illustrative.
+
+**One evaluator sub-claim was wrong.** Verdict 04 finding 6 says
+`docker/config_template.yaml` "only wires `defaultStore`, not the visibility store".
+Rendering the template for `DB=mariadb` produces `pluginName: "mariadb"` **twice**, at
+template lines 52 (`default`) and 82 (`visibility`). The same finding calls the file
+uncommitted; it was committed in `fe641e323`, before the verdict was written but after
+the commit the evaluator was pointed at.
+
+**Still open, accepted, not fixed:** the Bool generated column diverges from MySQL on
+*off-contract* JSON — for a JSON number `1` MariaDB yields 0 where MySQL yields 1, and
+for JSON `"true"`/`null` MariaDB stores a value where MySQL raises ERROR 3156. Correct
+for real JSON booleans, which is all the search-attribute encoder produces. Verdict 05
+rated it LOW and could not find a path that writes such a value, but did not prove none
+exists — treat as unverified rather than ruled out.

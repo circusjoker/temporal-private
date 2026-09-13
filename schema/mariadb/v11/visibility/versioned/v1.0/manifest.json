@@ -1,7 +1,7 @@
 {
   "CurrVersion": "1.0",
   "MinCompatibleVersion": "1.0",
-  "Description": "Initial MariaDB visibility schema (equivalent to MySQL v8 visibility 1.14)",
+  "Description": "Initial MariaDB visibility schema (same columns as MySQL v8 visibility 1.14; 11 multi-valued indexes dropped, see schema.sql header)",
   "SchemaUpdateCqlFiles": [
     "schema.sql"
   ]

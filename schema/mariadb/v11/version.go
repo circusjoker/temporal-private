@@ -3,7 +3,8 @@ package v11
 // NOTE: whenever there is a new database schema update, plz update the following versions
 
 // Version is the MariaDB database release version.
-// The execution/persistence schema is byte-for-byte the MySQL v8 schema, so the
+// The execution/persistence schema is the MySQL v8 schema except for the three
+// cluster_membership TIMESTAMP(6) columns (see temporal/schema.sql for why), so the
 // version lineage is kept in sync with it.
 const Version = "1.19"
 
