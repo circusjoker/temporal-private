@@ -10,8 +10,10 @@
 
 1. **Server 不執行使用者的程式碼。** 它只做三件事：把事件寫進 History、把任務丟給 Matching、在時間到時觸發 Timer。
    使用者的 Workflow / Activity 邏輯跑在使用者自己的 Worker 行程裡。
-2. **所有寫入都是「改 Mutable State + append History Events + 產生內部任務」的單一交易。**
-   內部任務（transfer / timer / visibility…）和事件寫在同一次 DB 交易裡，所以不會有「事件寫了但任務漏了」的情況。
+2. **所有寫入都是「改 Mutable State + append History Events + 產生內部任務」的一次原子提交。**
+   內部任務（transfer / timer / visibility…）和 Mutable State 寫在同一次 DB 交易裡，所以不會有「狀態變了但任務漏了」的情況。
+   （細節：SQL 後端是先 append history node、再開交易寫 Mutable State 與 tasks，孤兒 node 事後 trim；
+   Cassandra 則靠 shard 同 partition 的 LOGGED BATCH + LWT 一次做完。見 [資料模型與持久層導覽](./data-model.zh-TW.md)。）
 3. **Frontend 幾乎不做決策。** 它驗證、授權、然後把請求轉給 History（依 workflow ID 分片）或 Matching（依 task queue 分片）。
 
 ## 全景圖
