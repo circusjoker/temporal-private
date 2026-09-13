@@ -94,9 +94,6 @@ and reports `visibility_plugin_name: mariadb`.
 
 ## Later / optional
 - Nothing blocking. Optional follow-ups, none of which affect the acceptance criteria:
-  - KeywordList search attributes are unindexed on MariaDB (11 dropped multi-valued
-    indexes). Correct but scanning; would need a companion table or a generated
-    normalized column to index.
   - The Bool-on-off-contract-JSON divergence (verdict 05 S7-3) is unverified rather than
     ruled out.
   - MariaDB support is only exercised by the visibility functional suites; the rest of
@@ -158,10 +155,9 @@ Accepted unchanged (so no workaround was needed):
   three `cluster_membership` columns are TIMESTAMP(6) (see the TIMESTAMP section below).
   Version lineage kept at 1.19. The visibility schema had to be rewritten, so it starts
   its own lineage at 1.0.
-- **Known limitation:** KeywordList search attributes (BuildIds, BinaryChecksums,
-  TemporalChangeVersion, KeywordList01-03, ...) have no index on MariaDB. Queries on
-  them are correct but scan. 11 indexes are dropped relative to MySQL; they are listed
-  in the header of `schema/mariadb/v11/visibility/schema.sql`.
+- The 11 multi-valued indexes MySQL uses for KeywordList search attributes cannot be
+  created on MariaDB. **Superseded by item 12**, which indexes them through the
+  `keyword_list_search_attributes` side table.
 
 ### Agentic AI sample — what actually happened
 The official sample is `samples-python/openai_agents/model_providers` (`run_gpt_oss_worker.py`
@@ -410,3 +406,61 @@ default `max_connections` is 151; the suite drove `Max_used_connections` to 152 
 `maxConns` + visibility `maxConns` (20 + 2 in the dev config), and the suite runs many at
 once. `develop/docker-compose` now sets `--max-connections=1000`. **Worth sizing for
 real deployments**: connections are per host process, not per cluster.
+
+### Corrections after verdict 07 (NEEDS_WORK)
+
+Verdict 07 found three ways the index and the row disagree, all producing **false
+negatives** — MariaDB returning nothing where MySQL returns the row — plus a performance
+regression the original measurement had missed entirely.
+
+**1. The 1.0 → 1.1 upgrade had no backfill.** The worst of the three and the one needing
+no reachability argument: after an in-place upgrade, every KeywordList query returned
+nothing for every execution written before it, permanently for closed executions.
+`v1.1/backfill_keyword_list.sql` now populates the table from the existing rows, each
+attribute read from the table whose generated column a query reads. Verified by
+reproducing the evaluator's exact scenario: install 1.0, insert executions, upgrade —
+the shipped 1.1 query now returns the same rows as the JSON-only query MySQL answers.
+The migration comment warns that it is one statement over the whole table and should be
+run in a window, or split by namespace, on a large install.
+
+**2. The version guard was wrong, so the index is no longer derived from it.** The guard
+skipped when `storedVersion != row.Version` while the upsert SQL updates when
+`_version < VALUES(_version)` — equal is a no-op for the row and a full rewrite for the
+index, exactly the case the commit claimed to prevent. Rather than fix the comparison,
+the index is now built from the search attributes **actually stored**, read back inside
+the transaction, with each keyword list taken from its own source table. That makes
+"index agrees with column" true by construction instead of by a guard replicating the
+upsert's semantics. Both of the evaluator's probes now agree with the JSON-only answer:
+
+| case | before | after |
+|---|---|---|
+| `Insert(v=100,[v100])` then `Replace(v=50,[v50])` | csa=`v50`, index=`v100` → empty result | csa=`v50`, index=`v50`, agrees |
+| `Replace(v=400,[first])` then `Replace(v=400,[second])` | row=`first`, index=`second` → empty result | row=`first`, index=`first`, agrees |
+
+**3. `IN` regressed ~250x and the earlier table never measured it.** `BuildIds in
+(b0..b9)` matching 40,000 rows went 1.8 ms → 450 ms, because the semi-join inverts the
+driving table and throws away the `ORDER BY … LIMIT` early-stop. The "~3x on the middle
+band" claim was simply wrong for that shape. **`IN` no longer emits the side-table
+lookup** — it performs exactly as it did before the side table existed. Only single-value
+`=` uses the index, which is where the 1400 ms → 1 ms win is.
+
+**Also fixed:** both `database.sql` files had become identical and each created *both*
+databases (a copy/paste slip in the verdict-06 collation fix) — running them the
+conventional way failed with ERROR 1007. The wrapper now also satisfies
+`sqlplugin.Conn`, which MySQL's db does and mine had silently dropped. Length is counted
+in characters rather than bytes, so a 255-character CJK value is indexed instead of being
+skipped. Two comments pointed at a nonexistent `keyword_list_index.go`.
+
+**Accepted, not fixed, now stated:**
+- `tx.Commit()` errors are returned unclassified; statement errors are still converted.
+  The `DatabaseHandle` that does the conversion is not reachable from this package.
+- The legacy converter path (`system.visibilityEnableUnifiedQueryConverter=false`) does
+  not emit the side-table lookup, so the flag changes which correctness model is in
+  force. Correct either way, slower with the flag off.
+- Storage: ≈0.7 MB per 1,000 executions at 2 keyword values each (the side table is
+  effectively stored twice — the PK and `by_attr_value` cover the same four columns).
+  Bounded by retention, but it is new storage.
+- Write cost measured by the evaluator: ~33% throughput and ~50-65% p50 latency, with
+  **0 deadlocks across ~24,000 contended side-table writes**.
+- Unproven: optimizer plan stability as statistics drift, cold-cache behaviour, rolling
+  upgrades where 1.0-aware and 1.1-aware servers write the same database.

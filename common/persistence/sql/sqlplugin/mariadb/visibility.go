@@ -11,6 +11,12 @@ import (
 	"go.temporal.io/server/common/persistence/sql/sqlplugin"
 )
 
+// Known divergence from sqlplugin/mysql: errors from tx.Commit() are returned
+// unclassified. Statement errors still pass through the shared conn, which
+// converts them, but the DatabaseHandle that does the conversion is not reachable
+// from here. Commit failures therefore reach callers as driver errors rather than
+// serviceerrors.
+//
 // MariaDB owns its visibility writes rather than reusing the ones in
 // sqlplugin/mysql, because it has one more table to keep: the
 // keyword_list_search_attributes side table that stands in for the multi-valued
@@ -75,11 +81,21 @@ var (
 		DELETE FROM chasm_search_attributes
 		WHERE namespace_id = :namespace_id AND run_id = :run_id`
 
-	// The side table. Its rows are derived from the row that actually won the
-	// upsert, which is why the version has to be read back first.
-	templateSelectVisibilityVersion = `
-		SELECT _version FROM executions_visibility
-		WHERE namespace_id = ? AND run_id = ?`
+	// The side table is rebuilt from the search attributes actually committed to
+	// each of the three visibility tables, read back inside this transaction.
+	// Their upserts are version-guarded independently, so they can hold different
+	// content, and each keyword list must follow the table whose generated column
+	// a query reads.
+	templateSelectStoredSearchAttributes = `
+		SELECT ev.search_attributes AS ev_sa,
+		       csa.search_attributes AS csa_sa,
+		       chasm.search_attributes AS chasm_sa
+		FROM executions_visibility ev
+		LEFT JOIN custom_search_attributes csa
+		       ON csa.namespace_id = ev.namespace_id AND csa.run_id = ev.run_id
+		LEFT JOIN chasm_search_attributes chasm
+		       ON chasm.namespace_id = ev.namespace_id AND chasm.run_id = ev.run_id
+		WHERE ev.namespace_id = ? AND ev.run_id = ?`
 
 	templateDeleteKeywordListRows = `
 		DELETE FROM keyword_list_search_attributes
@@ -154,7 +170,7 @@ func (d *db) writeVisibility(
 	if _, err = conn.NamedExecContext(ctx, chasmSATemplate, finalRow); err != nil {
 		return nil, fmt.Errorf("unable to write chasm search attributes: %w", err)
 	}
-	if err = d.writeKeywordListRows(ctx, conn, finalRow); err != nil {
+	if err = d.writeKeywordListRows(ctx, conn, finalRow.NamespaceID, finalRow.RunID); err != nil {
 		return nil, err
 	}
 	if err = tx.Commit(); err != nil {
@@ -165,35 +181,34 @@ func (d *db) writeVisibility(
 
 // writeKeywordListRows rebuilds the side table for one execution.
 //
-// Visibility writes are version-guarded: `ON DUPLICATE KEY UPDATE ... IF(_version
-// < VALUES(_version), ...)` makes a stale upsert a no-op, and the plain insert is
-// a no-op when the row already exists. The side table has to follow the same
-// decision or it would describe a row that is not there, so the stored version is
-// read back inside the transaction -- which sees this transaction's own write if
-// it applied -- and the rows are only rebuilt when our version is the one in
-// place.
+// It reads back what the three visibility tables actually hold, inside this
+// transaction, and derives the index from that. Deriving from the row we tried to
+// write instead would need a guard replicating the upsert's exact semantics --
+// and visibility upserts are version-guarded three times over, independently, so
+// a write can land in one table and be rejected by another.
 func (d *db) writeKeywordListRows(
 	ctx context.Context,
 	conn sqlplugin.Conn,
-	row *sqlplugin.VisibilityRow,
+	namespaceID string,
+	runID string,
 ) error {
-	var storedVersion int64
-	err := conn.GetContext(ctx, &storedVersion, templateSelectVisibilityVersion, row.NamespaceID, row.RunID)
-	if err != nil {
-		return fmt.Errorf("unable to read back visibility version: %w", err)
-	}
-	if storedVersion != row.Version {
-		// Another write won. Whoever wrote it maintained the side table.
+	var stored storedSearchAttributes
+	err := conn.GetContext(ctx, &stored, templateSelectStoredSearchAttributes, namespaceID, runID)
+	if errors.Is(err, sql.ErrNoRows) {
+		// No visibility row, so nothing to index.
 		return nil
 	}
-
-	if _, err := conn.ExecContext(ctx, templateDeleteKeywordListRows, row.NamespaceID, row.RunID); err != nil {
-		return fmt.Errorf("unable to clear keyword list index: %w", err)
+	if err != nil {
+		return fmt.Errorf("unable to read back stored search attributes: %w", err)
 	}
 
-	rows, err := extractKeywordListRows(row)
+	rows, err := buildKeywordListRows(namespaceID, runID, stored)
 	if err != nil {
 		return fmt.Errorf("unable to build keyword list index: %w", err)
+	}
+
+	if _, err := conn.ExecContext(ctx, templateDeleteKeywordListRows, namespaceID, runID); err != nil {
+		return fmt.Errorf("unable to clear keyword list index: %w", err)
 	}
 	if len(rows) == 0 {
 		return nil

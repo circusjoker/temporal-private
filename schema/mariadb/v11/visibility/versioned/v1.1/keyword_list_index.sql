@@ -4,7 +4,7 @@
 --
 -- This table is the replacement: one row per (execution, attribute, value), kept in
 -- the same transaction as the visibility row it describes, so it is an index rather
--- than a cache. See common/persistence/sql/sqlplugin/mariadb/keyword_list_index.go.
+-- than a cache. See common/persistence/sql/sqlplugin/mariadb/keyword_list.go.
 --
 -- `attr` is the physical column name the value would have lived in on MySQL --
 -- BuildIds, KeywordList01, TemporalKeywordList01 and so on -- so one table covers

@@ -76,15 +76,17 @@ func TestMariaDBQueryConverter_ConvertKeywordListComparisonExpr(t *testing.T) {
 		},
 		{
 			// MariaDB has json_overlaps but no cast(... as json).
-			name:     "in: json predicate AND side-table lookup",
+			// IN keeps the JSON predicate alone: the semi-join loses the
+			// ORDER BY ... LIMIT early-stop, measured at ~250x worse on a
+			// 40,000-match IN. See ConvertKeywordListComparisonExpr.
+			name:     "in: json predicate only, no side-table lookup",
 			operator: sqlparser.InStr,
 			col:      keywordListCol,
 			value: sqlparser.ValTuple{
 				query.NewUnsafeSQLString("foo"),
 				query.NewUnsafeSQLString("bar"),
 			},
-			out: `(json_overlaps(KeywordList01, '["foo","bar"]') and ` +
-				sideTable + "'KeywordList01' and kl.value in ('foo', 'bar')))",
+			out: `json_overlaps(KeywordList01, '["foo","bar"]')`,
 		},
 		{
 			name:     "not in: json predicate only",

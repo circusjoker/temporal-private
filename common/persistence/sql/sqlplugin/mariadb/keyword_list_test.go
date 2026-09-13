@@ -4,10 +4,10 @@ import (
 	"os"
 	"regexp"
 	"sort"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"go.temporal.io/server/common/persistence/sql/sqlplugin"
 )
 
 // TestKeywordListAttrsMatchSchema fails if keywordListAttrs drifts from the JSON
@@ -33,7 +33,10 @@ func TestKeywordListAttrsMatchSchema(t *testing.T) {
 	r.NotEmpty(inSchema, "found no JSON generated columns -- has the schema moved?")
 
 	want := append([]string(nil), inSchema...)
-	got := append([]string(nil), keywordListAttrs...)
+	got := make([]string, 0, len(keywordListAttrs))
+	for _, a := range keywordListAttrs {
+		got = append(got, a.Name)
+	}
 	sort.Strings(want)
 	sort.Strings(got)
 	r.Equal(want, got,
@@ -41,55 +44,76 @@ func TestKeywordListAttrsMatchSchema(t *testing.T) {
 			"the schema silently stops being indexed")
 }
 
-func TestExtractKeywordListRows(t *testing.T) {
+func TestBuildKeywordListRows(t *testing.T) {
 	t.Parallel()
 
-	row := func(sa map[string]any) *sqlplugin.VisibilityRow {
-		v := sqlplugin.VisibilitySearchAttributes(sa)
-		return &sqlplugin.VisibilityRow{NamespaceID: "ns", RunID: "run", SearchAttributes: &v}
-	}
-	longValue := make([]byte, maxKeywordListValueLen+1)
-	for i := range longValue {
-		longValue[i] = 'x'
-	}
+	sa := func(s string) *string { return &s }
+	longValue := strings.Repeat("x", maxKeywordListValueLen+1)
 
-	t.Run("flattens lists and ignores other attributes", func(t *testing.T) {
-		out, err := extractKeywordListRows(row(map[string]any{
-			"BuildIds":      []string{"b2", "b1"},
-			"KeywordList01": []any{"k1"},
-			"Keyword01":     "not a list, not indexed",
-			"Int01":         int64(7),
-		}))
+	t.Run("each attribute comes from its own table", func(t *testing.T) {
+		// The three tables can hold different content, because their upserts are
+		// guarded independently. A KeywordList must follow the table whose
+		// generated column a query reads, not whichever table was checked first.
+		out, err := buildKeywordListRows("ns", "run", storedSearchAttributes{
+			Executions: sa(`{"BuildIds":["b1"],"KeywordList01":["wrong-table"]}`),
+			Custom:     sa(`{"KeywordList01":["k1"],"BuildIds":["wrong-table"]}`),
+			Chasm:      sa(`{"TemporalKeywordList01":["c1"]}`),
+		})
+		require.NoError(t, err)
+		require.Equal(t, []keywordListRow{
+			{"ns", "run", "BuildIds", "b1"},
+			{"ns", "run", "KeywordList01", "k1"},
+			{"ns", "run", "TemporalKeywordList01", "c1"},
+		}, out)
+	})
+
+	t.Run("sorted, deduplicated, and non-lists ignored", func(t *testing.T) {
+		out, err := buildKeywordListRows("ns", "run", storedSearchAttributes{
+			Executions: sa(`{"BuildIds":["b2","b1","b1"],"Keyword01":"not a list","Int01":7}`),
+		})
 		require.NoError(t, err)
 		require.Equal(t, []keywordListRow{
 			{"ns", "run", "BuildIds", "b1"},
 			{"ns", "run", "BuildIds", "b2"},
-			{"ns", "run", "KeywordList01", "k1"},
 		}, out)
 	})
 
-	t.Run("drops duplicates, which would violate the primary key", func(t *testing.T) {
-		out, err := extractKeywordListRows(row(map[string]any{"BuildIds": []string{"b1", "b1"}}))
-		require.NoError(t, err)
-		require.Len(t, out, 1)
-	})
-
-	t.Run("skips values the column cannot hold", func(t *testing.T) {
-		out, err := extractKeywordListRows(row(map[string]any{
-			"BuildIds": []string{"short", string(longValue)},
-		}))
+	t.Run("values the column cannot hold are skipped", func(t *testing.T) {
+		out, err := buildKeywordListRows("ns", "run", storedSearchAttributes{
+			Executions: sa(`{"BuildIds":["short","` + longValue + `"]}`),
+		})
 		require.NoError(t, err)
 		require.Equal(t, []keywordListRow{{"ns", "run", "BuildIds", "short"}}, out)
 	})
 
-	t.Run("no search attributes", func(t *testing.T) {
-		out, err := extractKeywordListRows(&sqlplugin.VisibilityRow{})
+	t.Run("length is counted in characters, as the column is", func(t *testing.T) {
+		// 255 CJK characters fit a VARCHAR(255) but are 765 bytes.
+		cjk := strings.Repeat("中", maxKeywordListValueLen)
+		out, err := buildKeywordListRows("ns", "run", storedSearchAttributes{
+			Executions: sa(`{"BuildIds":["` + cjk + `"]}`),
+		})
+		require.NoError(t, err)
+		require.Equal(t, []keywordListRow{{"ns", "run", "BuildIds", cjk}}, out)
+	})
+
+	t.Run("null attribute clears rather than errors", func(t *testing.T) {
+		out, err := buildKeywordListRows("ns", "run", storedSearchAttributes{
+			Executions: sa(`{"BuildIds":null}`),
+		})
+		require.NoError(t, err)
+		require.Empty(t, out)
+	})
+
+	t.Run("no stored rows", func(t *testing.T) {
+		out, err := buildKeywordListRows("ns", "run", storedSearchAttributes{})
 		require.NoError(t, err)
 		require.Empty(t, out)
 	})
 
 	t.Run("rejects a non-string element rather than guessing", func(t *testing.T) {
-		_, err := extractKeywordListRows(row(map[string]any{"BuildIds": []any{1}}))
+		_, err := buildKeywordListRows("ns", "run", storedSearchAttributes{
+			Executions: sa(`{"BuildIds":[1]}`),
+		})
 		require.Error(t, err)
 	})
 }

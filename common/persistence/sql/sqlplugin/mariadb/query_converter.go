@@ -42,6 +42,8 @@ func (dialect) GetCoalesceCloseTimeExpr() sqlparser.Expr {
 // A negated match emits the JSON predicate alone: `NOT (json AND side)` is not
 // the negation we want, and a NOT cannot use the index regardless.
 //
+// `IN` deliberately gets the JSON predicate alone; see the comment at that branch.
+//
 // Values longer than the side table's VARCHAR(255) are not indexed, so a query
 // for one simply omits the side-table half and scans, which is correct.
 func (d dialect) ConvertKeywordListComparisonExpr(
@@ -81,10 +83,14 @@ func (d dialect) ConvertKeywordListComparisonExpr(
 		if operator == sqlparser.NotInStr {
 			return &sqlparser.NotExpr{Expr: jsonExpr}, nil
 		}
-		if !isKeywordListAttr(col.FieldName) || !allIndexable(values) {
-			return jsonExpr, nil
-		}
-		return andExprs(jsonExpr, newKeywordListLookup(col.FieldName, values)), nil
+		// No side-table half for IN. Measured on 200k executions,
+		// `BuildIds in (b0..b9)` matching 40,000 rows went from 1.8ms to 450ms
+		// when the lookup was added: the semi-join inverts the driving table and
+		// throws away the ORDER BY ... LIMIT early-stop that makes the ordered
+		// index fast. A single-value `=` does not have that problem, so it keeps
+		// the lookup. IN therefore performs exactly as it did before the side
+		// table existed -- no gain, but no regression either.
+		return jsonExpr, nil
 
 	default:
 		// this should never happen since isSupportedKeywordListOperator should already fail
@@ -98,17 +104,6 @@ func (d dialect) ConvertKeywordListComparisonExpr(
 
 func andExprs(left, right sqlparser.Expr) sqlparser.Expr {
 	return &sqlparser.ParenExpr{Expr: &sqlparser.AndExpr{Left: left, Right: right}}
-}
-
-func indexable(v string) bool { return len(v) <= maxKeywordListValueLen }
-
-func allIndexable(values []string) bool {
-	for _, v := range values {
-		if !indexable(v) {
-			return false
-		}
-	}
-	return len(values) > 0
 }
 
 func buildJSONOverlapsExpr(col *query.SAColumn, values []string) (*jsonOverlapsExpr, error) {

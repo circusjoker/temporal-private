@@ -1,41 +1,57 @@
 package mariadb
 
 import (
+	"encoding/json"
 	"fmt"
 	"sort"
-
-	"go.temporal.io/server/common/persistence/sql/sqlplugin"
+	"unicode/utf8"
 )
 
-// keywordListAttrs are the search attributes stored as JSON arrays -- the ones
-// MySQL 8 indexes with `CAST(col AS CHAR(255) ARRAY)` multi-valued indexes and
-// MariaDB cannot. Each name is the physical column it occupies in the MySQL
-// schema, which is also the `attr` value used in keyword_list_search_attributes.
+// sourceTable is the table whose generated column a keyword list is read from.
 //
-// Keep this in sync with the JSON columns in
-// schema/mariadb/v11/visibility/schema.sql; TestKeywordListAttrsMatchSchema
-// fails if they drift.
-var keywordListAttrs = []string{
-	// executions_visibility
-	"TemporalChangeVersion",
-	"BinaryChecksums",
-	"BuildIds",
-	"TemporalPauseInfo",
-	"TemporalReportedProblems",
-	"TemporalUsedWorkerDeploymentVersions",
-	// custom_search_attributes
-	"KeywordList01",
-	"KeywordList02",
-	"KeywordList03",
-	// chasm_search_attributes
-	"TemporalKeywordList01",
-	"TemporalKeywordList02",
+// It matters which one: the three visibility tables are written from the same
+// JSON in the same transaction, but their upserts are guarded independently, so
+// they can hold different content. A query for KeywordList01 reads
+// custom_search_attributes' generated column, so the index for KeywordList01
+// must be built from custom_search_attributes and nothing else.
+type sourceTable int
+
+const (
+	sourceExecutions sourceTable = iota
+	sourceCustom
+	sourceChasm
+)
+
+// keywordListAttr is a search attribute stored as a JSON array -- the ones MySQL 8
+// indexes with `CAST(col AS CHAR(255) ARRAY)` multi-valued indexes and MariaDB
+// cannot. Name is the physical column, which is also the `attr` value in
+// keyword_list_search_attributes.
+//
+// Keep in sync with the JSON columns in schema/mariadb/v11/visibility/schema.sql;
+// TestKeywordListAttrsMatchSchema fails if they drift.
+type keywordListAttr struct {
+	Name   string
+	Source sourceTable
+}
+
+var keywordListAttrs = []keywordListAttr{
+	{"TemporalChangeVersion", sourceExecutions},
+	{"BinaryChecksums", sourceExecutions},
+	{"BuildIds", sourceExecutions},
+	{"TemporalPauseInfo", sourceExecutions},
+	{"TemporalReportedProblems", sourceExecutions},
+	{"TemporalUsedWorkerDeploymentVersions", sourceExecutions},
+	{"KeywordList01", sourceCustom},
+	{"KeywordList02", sourceCustom},
+	{"KeywordList03", sourceCustom},
+	{"TemporalKeywordList01", sourceChasm},
+	{"TemporalKeywordList02", sourceChasm},
 }
 
 var keywordListAttrSet = func() map[string]struct{} {
 	m := make(map[string]struct{}, len(keywordListAttrs))
 	for _, a := range keywordListAttrs {
-		m[a] = struct{}{}
+		m[a.Name] = struct{}{}
 	}
 	return m
 }()
@@ -48,60 +64,99 @@ func isKeywordListAttr(name string) bool {
 
 // keywordListRow is one (execution, attribute, value) triple.
 type keywordListRow struct {
-	NamespaceID string `db:"namespace_id"`
-	RunID       string `db:"run_id"`
-	Attr        string `db:"attr"`
-	Value       string `db:"value"`
+	NamespaceID string
+	RunID       string
+	Attr        string
+	Value       string
 }
 
-// maxKeywordListValueLen matches VARCHAR(255) in the schema. Longer values are
-// skipped rather than truncated: a truncated value would make the index claim a
-// match the JSON does not have.
+// maxKeywordListValueLen matches VARCHAR(255) in the schema, counted in
+// characters as the column is. Longer values are skipped rather than truncated: a
+// truncated value would make the index claim a match the JSON does not have. The
+// query converter applies the same rule, so nothing asks the index about a value
+// it cannot hold.
 const maxKeywordListValueLen = 255
 
-// extractKeywordListRows flattens a visibility row's keyword-list search
-// attributes into side-table rows.
-//
-// Values too long for the column are dropped, and the caller keeps the JSON
-// predicate alongside the index lookup so those executions are still findable.
-func extractKeywordListRows(row *sqlplugin.VisibilityRow) ([]keywordListRow, error) {
-	if row.SearchAttributes == nil {
-		return nil, nil
+func indexable(v string) bool { return utf8.RuneCountInString(v) <= maxKeywordListValueLen }
+
+// storedSearchAttributes is the JSON actually committed to each of the three
+// visibility tables, read back inside the write's own transaction.
+type storedSearchAttributes struct {
+	Executions *string `db:"ev_sa"`
+	Custom     *string `db:"csa_sa"`
+	Chasm      *string `db:"chasm_sa"`
+}
+
+func (s storedSearchAttributes) forSource(src sourceTable) *string {
+	switch src {
+	case sourceExecutions:
+		return s.Executions
+	case sourceCustom:
+		return s.Custom
+	case sourceChasm:
+		return s.Chasm
 	}
-	sa := *row.SearchAttributes
+	return nil
+}
+
+// buildKeywordListRows flattens the *stored* search attributes into side-table
+// rows.
+//
+// Deriving from what the database holds rather than from the row we tried to
+// write is what makes the index agree with the column by construction. The
+// alternative -- deriving from the in-memory row and guarding with a version
+// check -- has to replicate the upsert's exact semantics, and a guard that says
+// `!=` where the SQL says `<` silently rewrites the index for a write the row
+// rejected.
+func buildKeywordListRows(
+	namespaceID string,
+	runID string,
+	stored storedSearchAttributes,
+) ([]keywordListRow, error) {
+	decoded := map[sourceTable]map[string]json.RawMessage{}
+	for _, src := range []sourceTable{sourceExecutions, sourceCustom, sourceChasm} {
+		raw := stored.forSource(src)
+		if raw == nil || *raw == "" {
+			continue
+		}
+		var m map[string]json.RawMessage
+		if err := json.Unmarshal([]byte(*raw), &m); err != nil {
+			return nil, fmt.Errorf("stored search attributes are not a JSON object: %w", err)
+		}
+		decoded[src] = m
+	}
 
 	var out []keywordListRow
 	seen := make(map[string]struct{})
 	for _, attr := range keywordListAttrs {
-		raw, ok := sa[attr]
-		if !ok || raw == nil {
+		m, ok := decoded[attr.Source]
+		if !ok {
 			continue
 		}
-		values, err := toStringSlice(raw)
+		raw, ok := m[attr.Name]
+		if !ok {
+			continue
+		}
+		values, err := decodeStringList(raw)
 		if err != nil {
-			return nil, fmt.Errorf("search attribute %q: %w", attr, err)
+			return nil, fmt.Errorf("search attribute %q: %w", attr.Name, err)
 		}
 		for _, v := range values {
-			if len(v) > maxKeywordListValueLen {
+			if !indexable(v) {
 				continue
 			}
 			// The primary key is (namespace_id, run_id, attr, value), so a
 			// repeated value in the array would be a duplicate-key error.
-			key := attr + "\x00" + v
+			key := attr.Name + "\x00" + v
 			if _, dup := seen[key]; dup {
 				continue
 			}
 			seen[key] = struct{}{}
-			out = append(out, keywordListRow{
-				NamespaceID: row.NamespaceID,
-				RunID:       row.RunID,
-				Attr:        attr,
-				Value:       v,
-			})
+			out = append(out, keywordListRow{namespaceID, runID, attr.Name, v})
 		}
 	}
 	// Deterministic order keeps the multi-row INSERT stable, which makes
-	// deadlocks between concurrent writers to different executions less likely.
+	// deadlocks between concurrent writers less likely.
 	sort.Slice(out, func(i, j int) bool {
 		if out[i].Attr != out[j].Attr {
 			return out[i].Attr < out[j].Attr
@@ -111,26 +166,20 @@ func extractKeywordListRows(row *sqlplugin.VisibilityRow) ([]keywordListRow, err
 	return out, nil
 }
 
-// toStringSlice accepts the shapes a KeywordList can arrive in. The search
-// attribute decoder produces []string; []any turns up when a row has been
-// round-tripped through JSON.
-func toStringSlice(raw any) ([]string, error) {
-	switch v := raw.(type) {
-	case []string:
-		return v, nil
-	case string:
-		return []string{v}, nil
-	case []any:
-		out := make([]string, 0, len(v))
-		for _, item := range v {
-			s, ok := item.(string)
-			if !ok {
-				return nil, fmt.Errorf("expected string in list, got %T", item)
-			}
-			out = append(out, s)
-		}
-		return out, nil
-	default:
-		return nil, fmt.Errorf("expected a list of strings, got %T", raw)
+// decodeStringList accepts the shapes a KeywordList is stored in: a JSON array of
+// strings, or a bare string. A JSON null means the attribute was cleared.
+func decodeStringList(raw json.RawMessage) ([]string, error) {
+	var list []string
+	if err := json.Unmarshal(raw, &list); err == nil {
+		return list, nil
 	}
+	var single string
+	if err := json.Unmarshal(raw, &single); err == nil {
+		return []string{single}, nil
+	}
+	var isNull any
+	if err := json.Unmarshal(raw, &isNull); err == nil && isNull == nil {
+		return nil, nil
+	}
+	return nil, fmt.Errorf("expected a list of strings, got %s", string(raw))
 }

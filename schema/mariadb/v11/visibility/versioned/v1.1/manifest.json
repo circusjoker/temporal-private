@@ -1,8 +1,9 @@
 {
   "CurrVersion": "1.1",
   "MinCompatibleVersion": "1.0",
-  "Description": "Add keyword_list_search_attributes, the side table that replaces MariaDB's missing multi-valued indexes",
+  "Description": "Add keyword_list_search_attributes (MariaDB's stand-in for multi-valued indexes) and backfill it from existing executions",
   "SchemaUpdateCqlFiles": [
-    "keyword_list_index.sql"
+    "keyword_list_index.sql",
+    "backfill_keyword_list.sql"
   ]
 }
