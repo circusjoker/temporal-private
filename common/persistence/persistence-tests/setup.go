@@ -19,6 +19,10 @@ const (
 	testMySQLPassword  = "temporal"
 	testMySQLSchemaDir = "schema/mysql/v8"
 
+	// MariaDB reuses the MySQL credentials and port; only the plugin and the
+	// visibility schema differ.
+	testMariaDBSchemaDir = "schema/mariadb/v11"
+
 	testPostgreSQLUser      = "temporal"
 	testPostgreSQLPassword  = "temporal"
 	testPostgreSQLSchemaDir = "schema/postgresql/v12"
@@ -37,6 +41,8 @@ func GetTestClusterOption(storeType, driver string) *TestBaseOptions {
 		switch driver {
 		case mysql.PluginName:
 			return GetMySQLTestClusterOption()
+		case mysql.PluginNameMariaDB:
+			return GetMariaDBTestClusterOption()
 		case postgresql.PluginName, postgresql.PluginNamePGX:
 			return GetPostgreSQLTestClusterOption(driver, nil)
 		case sqlite.PluginName:
@@ -72,6 +78,20 @@ func GetMySQLTestClusterOption() *TestBaseOptions {
 		DBHost:          environment.GetMySQLAddress(),
 		DBPort:          environment.GetMySQLPort(),
 		SchemaDir:       testMySQLSchemaDir,
+		StoreType:       config.StoreTypeSQL,
+	}
+}
+
+// GetMariaDBTestClusterOption return test options
+func GetMariaDBTestClusterOption() *TestBaseOptions {
+	return &TestBaseOptions{
+		SQLDBPluginName: mysql.PluginNameMariaDB,
+		DBName:          GenerateRandomDBName(),
+		DBUsername:      testMySQLUser,
+		DBPassword:      testMySQLPassword,
+		DBHost:          environment.GetMySQLAddress(),
+		DBPort:          environment.GetMySQLPort(),
+		SchemaDir:       testMariaDBSchemaDir,
 		StoreType:       config.StoreTypeSQL,
 	}
 }

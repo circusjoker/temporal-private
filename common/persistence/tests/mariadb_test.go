@@ -1,5 +1,10 @@
 package tests
 
+// MariaDB persistence coverage. This mirrors mysql_test.go one-for-one, the way
+// postgresql_test.go and sqlite_test.go each mirror it for their own store, so
+// that every store the MySQL plugin covers is also exercised against MariaDB --
+// where the visibility schema is not the same file.
+
 import (
 	"math"
 	"sync/atomic"
@@ -18,14 +23,14 @@ import (
 	"go.temporal.io/server/common/resolver"
 )
 
-func TestMySQLShardStoreSuite(t *testing.T) {
+func TestMariaDBShardStoreSuite(t *testing.T) {
 	t.Parallel()
-	testData, tearDown := setUpMySQLTest(t)
+	testData, tearDown := setUpMariaDBTest(t)
 	defer tearDown()
 
 	shardStore, err := testData.Factory.NewShardStore()
 	if err != nil {
-		t.Fatalf("unable to create MySQL DB: %v", err)
+		t.Fatalf("unable to create MariaDB DB: %v", err)
 	}
 
 	s := NewShardSuite(
@@ -37,22 +42,22 @@ func TestMySQLShardStoreSuite(t *testing.T) {
 	suite.Run(t, s)
 }
 
-func TestMySQLExecutionMutableStateStoreSuite(t *testing.T) {
+func TestMariaDBExecutionMutableStateStoreSuite(t *testing.T) {
 	t.Parallel()
-	testData, tearDown := setUpMySQLTest(t)
+	testData, tearDown := setUpMariaDBTest(t)
 	defer tearDown()
 
 	shardStore, err := testData.Factory.NewShardStore()
 	if err != nil {
-		t.Fatalf("unable to create MySQL DB: %v", err)
+		t.Fatalf("unable to create MariaDB DB: %v", err)
 	}
 	executionStore, err := testData.Factory.NewExecutionStore()
 	if err != nil {
-		t.Fatalf("unable to create MySQL DB: %v", err)
+		t.Fatalf("unable to create MariaDB DB: %v", err)
 	}
 	db, err := sql.NewSQLDB(sqlplugin.DbKindMain, testData.Cfg, resolver.NewNoopResolver(), testData.Logger, metrics.NoopMetricsHandler)
 	if err != nil {
-		t.Fatalf("unable to create MySQL DB: %v", err)
+		t.Fatalf("unable to create MariaDB DB: %v", err)
 	}
 	defer func() { _ = db.Close() }()
 
@@ -67,18 +72,18 @@ func TestMySQLExecutionMutableStateStoreSuite(t *testing.T) {
 	suite.Run(t, s)
 }
 
-func TestMySQLExecutionMutableStateTaskStoreSuite(t *testing.T) {
+func TestMariaDBExecutionMutableStateTaskStoreSuite(t *testing.T) {
 	t.Parallel()
-	testData, tearDown := setUpMySQLTest(t)
+	testData, tearDown := setUpMariaDBTest(t)
 	defer tearDown()
 
 	shardStore, err := testData.Factory.NewShardStore()
 	if err != nil {
-		t.Fatalf("unable to create MySQL DB: %v", err)
+		t.Fatalf("unable to create MariaDB DB: %v", err)
 	}
 	executionStore, err := testData.Factory.NewExecutionStore()
 	if err != nil {
-		t.Fatalf("unable to create MySQL DB: %v", err)
+		t.Fatalf("unable to create MariaDB DB: %v", err)
 	}
 
 	s := NewExecutionMutableStateTaskSuite(
@@ -91,28 +96,28 @@ func TestMySQLExecutionMutableStateTaskStoreSuite(t *testing.T) {
 	suite.Run(t, s)
 }
 
-func TestMySQLHistoryStoreSuite(t *testing.T) {
+func TestMariaDBHistoryStoreSuite(t *testing.T) {
 	t.Parallel()
-	testData, tearDown := setUpMySQLTest(t)
+	testData, tearDown := setUpMariaDBTest(t)
 	defer tearDown()
 
 	store, err := testData.Factory.NewExecutionStore()
 	if err != nil {
-		t.Fatalf("unable to create MySQL DB: %v", err)
+		t.Fatalf("unable to create MariaDB DB: %v", err)
 	}
 
 	s := NewHistoryEventsSuite(t, store, testData.Logger)
 	suite.Run(t, s)
 }
 
-func TestMySQLTaskQueueSuite(t *testing.T) {
+func TestMariaDBTaskQueueSuite(t *testing.T) {
 	t.Parallel()
-	testData, tearDown := setUpMySQLTest(t)
+	testData, tearDown := setUpMariaDBTest(t)
 	defer tearDown()
 
 	taskQueueStore, err := testData.Factory.NewTaskStore()
 	if err != nil {
-		t.Fatalf("unable to create MySQL DB: %v", err)
+		t.Fatalf("unable to create MariaDB DB: %v", err)
 	}
 	defer func() {
 		testData.Factory.Close()
@@ -123,14 +128,14 @@ func TestMySQLTaskQueueSuite(t *testing.T) {
 	suite.Run(t, s)
 }
 
-func TestMySQLFairTaskQueueSuite(t *testing.T) {
+func TestMariaDBFairTaskQueueSuite(t *testing.T) {
 	t.Parallel()
-	testData, tearDown := setUpMySQLTest(t)
+	testData, tearDown := setUpMariaDBTest(t)
 	defer tearDown()
 
 	taskQueueStore, err := testData.Factory.NewFairTaskStore()
 	if err != nil {
-		t.Fatalf("unable to create MySQL DB: %v", err)
+		t.Fatalf("unable to create MariaDB DB: %v", err)
 	}
 	defer func() {
 		testData.Factory.Close()
@@ -141,100 +146,100 @@ func TestMySQLFairTaskQueueSuite(t *testing.T) {
 	suite.Run(t, s)
 }
 
-func TestMySQLTaskQueueTaskSuite(t *testing.T) {
+func TestMariaDBTaskQueueTaskSuite(t *testing.T) {
 	t.Parallel()
-	testData, tearDown := setUpMySQLTest(t)
+	testData, tearDown := setUpMariaDBTest(t)
 	defer tearDown()
 
 	taskQueueStore, err := testData.Factory.NewTaskStore()
 	if err != nil {
-		t.Fatalf("unable to create MySQL DB: %v", err)
+		t.Fatalf("unable to create MariaDB DB: %v", err)
 	}
 
 	s := NewTaskQueueTaskSuite(t, taskQueueStore, testData.Logger)
 	suite.Run(t, s)
 }
 
-func TestMySQLTaskQueueFairTaskSuite(t *testing.T) {
+func TestMariaDBTaskQueueFairTaskSuite(t *testing.T) {
 	t.Parallel()
-	testData, tearDown := setUpMySQLTest(t)
+	testData, tearDown := setUpMariaDBTest(t)
 	defer tearDown()
 
 	taskQueueStore, err := testData.Factory.NewFairTaskStore()
 	if err != nil {
-		t.Fatalf("unable to create MySQL DB: %v", err)
+		t.Fatalf("unable to create MariaDB DB: %v", err)
 	}
 
 	s := NewTaskQueueFairTaskSuite(t, taskQueueStore, testData.Logger)
 	suite.Run(t, s)
 }
 
-func TestMySQLTaskQueueUserDataSuite(t *testing.T) {
+func TestMariaDBTaskQueueUserDataSuite(t *testing.T) {
 	t.Parallel()
-	testData, tearDown := setUpMySQLTest(t)
+	testData, tearDown := setUpMariaDBTest(t)
 	defer tearDown()
 
 	taskQueueStore, err := testData.Factory.NewTaskStore()
 	if err != nil {
-		t.Fatalf("unable to create MySQL DB: %v", err)
+		t.Fatalf("unable to create MariaDB DB: %v", err)
 	}
 
 	s := NewTaskQueueUserDataSuite(t, taskQueueStore, testData.Logger)
 	suite.Run(t, s)
 }
 
-func TestMySQLVisibilityPersistenceSuite(t *testing.T) {
+func TestMariaDBVisibilityPersistenceSuite(t *testing.T) {
 	t.Parallel()
 	s := &VisibilityPersistenceSuite{
-		TestBase: persistencetests.NewTestBaseWithSQL(persistencetests.GetMySQLTestClusterOption()),
+		TestBase: persistencetests.NewTestBaseWithSQL(persistencetests.GetMariaDBTestClusterOption()),
 	}
 	suite.Run(t, s)
 }
 
 // TODO: Merge persistence-tests into the tests directory.
 
-func TestMySQLHistoryV2PersistenceSuite(t *testing.T) {
+func TestMariaDBHistoryV2PersistenceSuite(t *testing.T) {
 	t.Parallel()
 	s := new(persistencetests.HistoryV2PersistenceSuite)
-	s.TestBase = persistencetests.NewTestBaseWithSQL(persistencetests.GetMySQLTestClusterOption())
+	s.TestBase = persistencetests.NewTestBaseWithSQL(persistencetests.GetMariaDBTestClusterOption())
 	s.Setup(nil)
 	suite.Run(t, s)
 }
 
-func TestMySQLMetadataPersistenceSuiteV2(t *testing.T) {
+func TestMariaDBMetadataPersistenceSuiteV2(t *testing.T) {
 	t.Parallel()
 	s := new(persistencetests.MetadataPersistenceSuiteV2)
-	s.TestBase = persistencetests.NewTestBaseWithSQL(persistencetests.GetMySQLTestClusterOption())
+	s.TestBase = persistencetests.NewTestBaseWithSQL(persistencetests.GetMariaDBTestClusterOption())
 	s.Setup(nil)
 	suite.Run(t, s)
 }
 
-func TestMySQLQueuePersistence(t *testing.T) {
+func TestMariaDBQueuePersistence(t *testing.T) {
 	t.Parallel()
 	s := new(persistencetests.QueuePersistenceSuite)
-	s.TestBase = persistencetests.NewTestBaseWithSQL(persistencetests.GetMySQLTestClusterOption())
+	s.TestBase = persistencetests.NewTestBaseWithSQL(persistencetests.GetMariaDBTestClusterOption())
 	s.Setup(nil)
 	suite.Run(t, s)
 }
 
-func TestMySQLClusterMetadataPersistence(t *testing.T) {
+func TestMariaDBClusterMetadataPersistence(t *testing.T) {
 	t.Parallel()
 	s := new(persistencetests.ClusterMetadataManagerSuite)
-	s.TestBase = persistencetests.NewTestBaseWithSQL(persistencetests.GetMySQLTestClusterOption())
+	s.TestBase = persistencetests.NewTestBaseWithSQL(persistencetests.GetMariaDBTestClusterOption())
 	s.Setup(nil)
 	suite.Run(t, s)
 }
 
 // SQL Store tests
 
-func TestMySQLNamespaceSuite(t *testing.T) {
+func TestMariaDBNamespaceSuite(t *testing.T) {
 	t.Parallel()
-	cfg := NewMySQLConfig()
+	cfg := NewMariaDBConfig()
 	SetupMySQLDatabase(t, cfg)
-	SetupMySQLSchema(t, cfg)
+	SetupMariaDBSchema(t, cfg)
 	store, err := sql.NewSQLDB(sqlplugin.DbKindMain, cfg, resolver.NewNoopResolver(), log.NewTestLogger(), metrics.NoopMetricsHandler)
 	if err != nil {
-		t.Fatalf("unable to create MySQL DB: %v", err)
+		t.Fatalf("unable to create MariaDB DB: %v", err)
 	}
 	defer func() {
 		_ = store.Close()
@@ -245,14 +250,14 @@ func TestMySQLNamespaceSuite(t *testing.T) {
 	suite.Run(t, s)
 }
 
-func TestMySQLQueueMessageSuite(t *testing.T) {
+func TestMariaDBQueueMessageSuite(t *testing.T) {
 	t.Parallel()
-	cfg := NewMySQLConfig()
+	cfg := NewMariaDBConfig()
 	SetupMySQLDatabase(t, cfg)
-	SetupMySQLSchema(t, cfg)
+	SetupMariaDBSchema(t, cfg)
 	store, err := sql.NewSQLDB(sqlplugin.DbKindMain, cfg, resolver.NewNoopResolver(), log.NewTestLogger(), metrics.NoopMetricsHandler)
 	if err != nil {
-		t.Fatalf("unable to create MySQL DB: %v", err)
+		t.Fatalf("unable to create MariaDB DB: %v", err)
 	}
 	defer func() {
 		_ = store.Close()
@@ -263,14 +268,14 @@ func TestMySQLQueueMessageSuite(t *testing.T) {
 	suite.Run(t, s)
 }
 
-func TestMySQLQueueMetadataSuite(t *testing.T) {
+func TestMariaDBQueueMetadataSuite(t *testing.T) {
 	t.Parallel()
-	cfg := NewMySQLConfig()
+	cfg := NewMariaDBConfig()
 	SetupMySQLDatabase(t, cfg)
-	SetupMySQLSchema(t, cfg)
+	SetupMariaDBSchema(t, cfg)
 	store, err := sql.NewSQLDB(sqlplugin.DbKindMain, cfg, resolver.NewNoopResolver(), log.NewTestLogger(), metrics.NoopMetricsHandler)
 	if err != nil {
-		t.Fatalf("unable to create MySQL DB: %v", err)
+		t.Fatalf("unable to create MariaDB DB: %v", err)
 	}
 	defer func() {
 		_ = store.Close()
@@ -281,14 +286,14 @@ func TestMySQLQueueMetadataSuite(t *testing.T) {
 	suite.Run(t, s)
 }
 
-func TestMySQLMatchingTaskSuite(t *testing.T) {
+func TestMariaDBMatchingTaskSuite(t *testing.T) {
 	t.Parallel()
-	cfg := NewMySQLConfig()
+	cfg := NewMariaDBConfig()
 	SetupMySQLDatabase(t, cfg)
-	SetupMySQLSchema(t, cfg)
+	SetupMariaDBSchema(t, cfg)
 	store, err := sql.NewSQLDB(sqlplugin.DbKindMain, cfg, resolver.NewNoopResolver(), log.NewTestLogger(), metrics.NoopMetricsHandler)
 	if err != nil {
-		t.Fatalf("unable to create MySQL DB: %v", err)
+		t.Fatalf("unable to create MariaDB DB: %v", err)
 	}
 	defer func() {
 		_ = store.Close()
@@ -299,14 +304,14 @@ func TestMySQLMatchingTaskSuite(t *testing.T) {
 	suite.Run(t, s)
 }
 
-func TestMySQLMatchingTaskV2Suite(t *testing.T) {
+func TestMariaDBMatchingTaskV2Suite(t *testing.T) {
 	t.Parallel()
-	cfg := NewMySQLConfig()
+	cfg := NewMariaDBConfig()
 	SetupMySQLDatabase(t, cfg)
-	SetupMySQLSchema(t, cfg)
+	SetupMariaDBSchema(t, cfg)
 	store, err := sql.NewSQLDB(sqlplugin.DbKindMain, cfg, resolver.NewNoopResolver(), log.NewTestLogger(), metrics.NoopMetricsHandler)
 	if err != nil {
-		t.Fatalf("unable to create MySQL DB: %v", err)
+		t.Fatalf("unable to create MariaDB DB: %v", err)
 	}
 	defer func() {
 		_ = store.Close()
@@ -317,14 +322,14 @@ func TestMySQLMatchingTaskV2Suite(t *testing.T) {
 	suite.Run(t, s)
 }
 
-func TestMySQLMatchingTaskQueueSuite(t *testing.T) {
+func TestMariaDBMatchingTaskQueueSuite(t *testing.T) {
 	t.Parallel()
-	cfg := NewMySQLConfig()
+	cfg := NewMariaDBConfig()
 	SetupMySQLDatabase(t, cfg)
-	SetupMySQLSchema(t, cfg)
+	SetupMariaDBSchema(t, cfg)
 	store, err := sql.NewSQLDB(sqlplugin.DbKindMain, cfg, resolver.NewNoopResolver(), log.NewTestLogger(), metrics.NoopMetricsHandler)
 	if err != nil {
-		t.Fatalf("unable to create MySQL DB: %v", err)
+		t.Fatalf("unable to create MariaDB DB: %v", err)
 	}
 	defer func() {
 		_ = store.Close()
@@ -335,14 +340,14 @@ func TestMySQLMatchingTaskQueueSuite(t *testing.T) {
 	suite.Run(t, s)
 }
 
-func TestMySQLMatchingFairTaskQueueSuite(t *testing.T) {
+func TestMariaDBMatchingFairTaskQueueSuite(t *testing.T) {
 	t.Parallel()
-	cfg := NewMySQLConfig()
+	cfg := NewMariaDBConfig()
 	SetupMySQLDatabase(t, cfg)
-	SetupMySQLSchema(t, cfg)
+	SetupMariaDBSchema(t, cfg)
 	store, err := sql.NewSQLDB(sqlplugin.DbKindMain, cfg, resolver.NewNoopResolver(), log.NewTestLogger(), metrics.NoopMetricsHandler)
 	if err != nil {
-		t.Fatalf("unable to create MySQL DB: %v", err)
+		t.Fatalf("unable to create MariaDB DB: %v", err)
 	}
 	defer func() {
 		_ = store.Close()
@@ -353,14 +358,14 @@ func TestMySQLMatchingFairTaskQueueSuite(t *testing.T) {
 	suite.Run(t, s)
 }
 
-func TestMySQLHistoryShardSuite(t *testing.T) {
+func TestMariaDBHistoryShardSuite(t *testing.T) {
 	t.Parallel()
-	cfg := NewMySQLConfig()
+	cfg := NewMariaDBConfig()
 	SetupMySQLDatabase(t, cfg)
-	SetupMySQLSchema(t, cfg)
+	SetupMariaDBSchema(t, cfg)
 	store, err := sql.NewSQLDB(sqlplugin.DbKindMain, cfg, resolver.NewNoopResolver(), log.NewTestLogger(), metrics.NoopMetricsHandler)
 	if err != nil {
-		t.Fatalf("unable to create MySQL DB: %v", err)
+		t.Fatalf("unable to create MariaDB DB: %v", err)
 	}
 	defer func() {
 		_ = store.Close()
@@ -371,14 +376,14 @@ func TestMySQLHistoryShardSuite(t *testing.T) {
 	suite.Run(t, s)
 }
 
-func TestMySQLHistoryNodeSuite(t *testing.T) {
+func TestMariaDBHistoryNodeSuite(t *testing.T) {
 	t.Parallel()
-	cfg := NewMySQLConfig()
+	cfg := NewMariaDBConfig()
 	SetupMySQLDatabase(t, cfg)
-	SetupMySQLSchema(t, cfg)
+	SetupMariaDBSchema(t, cfg)
 	store, err := sql.NewSQLDB(sqlplugin.DbKindMain, cfg, resolver.NewNoopResolver(), log.NewTestLogger(), metrics.NoopMetricsHandler)
 	if err != nil {
-		t.Fatalf("unable to create MySQL DB: %v", err)
+		t.Fatalf("unable to create MariaDB DB: %v", err)
 	}
 	defer func() {
 		_ = store.Close()
@@ -389,14 +394,14 @@ func TestMySQLHistoryNodeSuite(t *testing.T) {
 	suite.Run(t, s)
 }
 
-func TestMySQLHistoryTreeSuite(t *testing.T) {
+func TestMariaDBHistoryTreeSuite(t *testing.T) {
 	t.Parallel()
-	cfg := NewMySQLConfig()
+	cfg := NewMariaDBConfig()
 	SetupMySQLDatabase(t, cfg)
-	SetupMySQLSchema(t, cfg)
+	SetupMariaDBSchema(t, cfg)
 	store, err := sql.NewSQLDB(sqlplugin.DbKindMain, cfg, resolver.NewNoopResolver(), log.NewTestLogger(), metrics.NoopMetricsHandler)
 	if err != nil {
-		t.Fatalf("unable to create MySQL DB: %v", err)
+		t.Fatalf("unable to create MariaDB DB: %v", err)
 	}
 	defer func() {
 		_ = store.Close()
@@ -407,14 +412,14 @@ func TestMySQLHistoryTreeSuite(t *testing.T) {
 	suite.Run(t, s)
 }
 
-func TestMySQLHistoryCurrentExecutionSuite(t *testing.T) {
+func TestMariaDBHistoryCurrentExecutionSuite(t *testing.T) {
 	t.Parallel()
-	cfg := NewMySQLConfig()
+	cfg := NewMariaDBConfig()
 	SetupMySQLDatabase(t, cfg)
-	SetupMySQLSchema(t, cfg)
+	SetupMariaDBSchema(t, cfg)
 	store, err := sql.NewSQLDB(sqlplugin.DbKindMain, cfg, resolver.NewNoopResolver(), log.NewTestLogger(), metrics.NoopMetricsHandler)
 	if err != nil {
-		t.Fatalf("unable to create MySQL DB: %v", err)
+		t.Fatalf("unable to create MariaDB DB: %v", err)
 	}
 	defer func() {
 		_ = store.Close()
@@ -425,14 +430,14 @@ func TestMySQLHistoryCurrentExecutionSuite(t *testing.T) {
 	suite.Run(t, s)
 }
 
-func TestMySQLHistoryCurrentChasmExecutionSuite(t *testing.T) {
+func TestMariaDBHistoryCurrentChasmExecutionSuite(t *testing.T) {
 	t.Parallel()
-	cfg := NewMySQLConfig()
+	cfg := NewMariaDBConfig()
 	SetupMySQLDatabase(t, cfg)
-	SetupMySQLSchema(t, cfg)
+	SetupMariaDBSchema(t, cfg)
 	store, err := sql.NewSQLDB(sqlplugin.DbKindMain, cfg, resolver.NewNoopResolver(), log.NewTestLogger(), metrics.NoopMetricsHandler)
 	if err != nil {
-		t.Fatalf("unable to create MySQL DB: %v", err)
+		t.Fatalf("unable to create MariaDB DB: %v", err)
 	}
 	defer func() {
 		_ = store.Close()
@@ -443,14 +448,14 @@ func TestMySQLHistoryCurrentChasmExecutionSuite(t *testing.T) {
 	suite.Run(t, s)
 }
 
-func TestMySQLHistoryExecutionSuite(t *testing.T) {
+func TestMariaDBHistoryExecutionSuite(t *testing.T) {
 	t.Parallel()
-	cfg := NewMySQLConfig()
+	cfg := NewMariaDBConfig()
 	SetupMySQLDatabase(t, cfg)
-	SetupMySQLSchema(t, cfg)
+	SetupMariaDBSchema(t, cfg)
 	store, err := sql.NewSQLDB(sqlplugin.DbKindMain, cfg, resolver.NewNoopResolver(), log.NewTestLogger(), metrics.NoopMetricsHandler)
 	if err != nil {
-		t.Fatalf("unable to create MySQL DB: %v", err)
+		t.Fatalf("unable to create MariaDB DB: %v", err)
 	}
 	defer func() {
 		_ = store.Close()
@@ -461,14 +466,14 @@ func TestMySQLHistoryExecutionSuite(t *testing.T) {
 	suite.Run(t, s)
 }
 
-func TestMySQLHistoryTransferTaskSuite(t *testing.T) {
+func TestMariaDBHistoryTransferTaskSuite(t *testing.T) {
 	t.Parallel()
-	cfg := NewMySQLConfig()
+	cfg := NewMariaDBConfig()
 	SetupMySQLDatabase(t, cfg)
-	SetupMySQLSchema(t, cfg)
+	SetupMariaDBSchema(t, cfg)
 	store, err := sql.NewSQLDB(sqlplugin.DbKindMain, cfg, resolver.NewNoopResolver(), log.NewTestLogger(), metrics.NoopMetricsHandler)
 	if err != nil {
-		t.Fatalf("unable to create MySQL DB: %v", err)
+		t.Fatalf("unable to create MariaDB DB: %v", err)
 	}
 	defer func() {
 		_ = store.Close()
@@ -479,14 +484,14 @@ func TestMySQLHistoryTransferTaskSuite(t *testing.T) {
 	suite.Run(t, s)
 }
 
-func TestMySQLHistoryTimerTaskSuite(t *testing.T) {
+func TestMariaDBHistoryTimerTaskSuite(t *testing.T) {
 	t.Parallel()
-	cfg := NewMySQLConfig()
+	cfg := NewMariaDBConfig()
 	SetupMySQLDatabase(t, cfg)
-	SetupMySQLSchema(t, cfg)
+	SetupMariaDBSchema(t, cfg)
 	store, err := sql.NewSQLDB(sqlplugin.DbKindMain, cfg, resolver.NewNoopResolver(), log.NewTestLogger(), metrics.NoopMetricsHandler)
 	if err != nil {
-		t.Fatalf("unable to create MySQL DB: %v", err)
+		t.Fatalf("unable to create MariaDB DB: %v", err)
 	}
 	defer func() {
 		_ = store.Close()
@@ -497,14 +502,14 @@ func TestMySQLHistoryTimerTaskSuite(t *testing.T) {
 	suite.Run(t, s)
 }
 
-func TestMySQLHistoryReplicationTaskSuite(t *testing.T) {
+func TestMariaDBHistoryReplicationTaskSuite(t *testing.T) {
 	t.Parallel()
-	cfg := NewMySQLConfig()
+	cfg := NewMariaDBConfig()
 	SetupMySQLDatabase(t, cfg)
-	SetupMySQLSchema(t, cfg)
+	SetupMariaDBSchema(t, cfg)
 	store, err := sql.NewSQLDB(sqlplugin.DbKindMain, cfg, resolver.NewNoopResolver(), log.NewTestLogger(), metrics.NoopMetricsHandler)
 	if err != nil {
-		t.Fatalf("unable to create MySQL DB: %v", err)
+		t.Fatalf("unable to create MariaDB DB: %v", err)
 	}
 	defer func() {
 		_ = store.Close()
@@ -515,14 +520,14 @@ func TestMySQLHistoryReplicationTaskSuite(t *testing.T) {
 	suite.Run(t, s)
 }
 
-func TestMySQLHistoryVisibilityTaskSuite(t *testing.T) {
+func TestMariaDBHistoryVisibilityTaskSuite(t *testing.T) {
 	t.Parallel()
-	cfg := NewMySQLConfig()
+	cfg := NewMariaDBConfig()
 	SetupMySQLDatabase(t, cfg)
-	SetupMySQLSchema(t, cfg)
+	SetupMariaDBSchema(t, cfg)
 	store, err := sql.NewSQLDB(sqlplugin.DbKindMain, cfg, resolver.NewNoopResolver(), log.NewTestLogger(), metrics.NoopMetricsHandler)
 	if err != nil {
-		t.Fatalf("unable to create MySQL DB: %v", err)
+		t.Fatalf("unable to create MariaDB DB: %v", err)
 	}
 	defer func() {
 		_ = store.Close()
@@ -533,14 +538,14 @@ func TestMySQLHistoryVisibilityTaskSuite(t *testing.T) {
 	suite.Run(t, s)
 }
 
-func TestMySQLHistoryReplicationDLQTaskSuite(t *testing.T) {
+func TestMariaDBHistoryReplicationDLQTaskSuite(t *testing.T) {
 	t.Parallel()
-	cfg := NewMySQLConfig()
+	cfg := NewMariaDBConfig()
 	SetupMySQLDatabase(t, cfg)
-	SetupMySQLSchema(t, cfg)
+	SetupMariaDBSchema(t, cfg)
 	store, err := sql.NewSQLDB(sqlplugin.DbKindMain, cfg, resolver.NewNoopResolver(), log.NewTestLogger(), metrics.NoopMetricsHandler)
 	if err != nil {
-		t.Fatalf("unable to create MySQL DB: %v", err)
+		t.Fatalf("unable to create MariaDB DB: %v", err)
 	}
 	defer func() {
 		_ = store.Close()
@@ -551,14 +556,14 @@ func TestMySQLHistoryReplicationDLQTaskSuite(t *testing.T) {
 	suite.Run(t, s)
 }
 
-func TestMySQLHistoryExecutionBufferSuite(t *testing.T) {
+func TestMariaDBHistoryExecutionBufferSuite(t *testing.T) {
 	t.Parallel()
-	cfg := NewMySQLConfig()
+	cfg := NewMariaDBConfig()
 	SetupMySQLDatabase(t, cfg)
-	SetupMySQLSchema(t, cfg)
+	SetupMariaDBSchema(t, cfg)
 	store, err := sql.NewSQLDB(sqlplugin.DbKindMain, cfg, resolver.NewNoopResolver(), log.NewTestLogger(), metrics.NoopMetricsHandler)
 	if err != nil {
-		t.Fatalf("unable to create MySQL DB: %v", err)
+		t.Fatalf("unable to create MariaDB DB: %v", err)
 	}
 	defer func() {
 		_ = store.Close()
@@ -569,14 +574,14 @@ func TestMySQLHistoryExecutionBufferSuite(t *testing.T) {
 	suite.Run(t, s)
 }
 
-func TestMySQLHistoryExecutionActivitySuite(t *testing.T) {
+func TestMariaDBHistoryExecutionActivitySuite(t *testing.T) {
 	t.Parallel()
-	cfg := NewMySQLConfig()
+	cfg := NewMariaDBConfig()
 	SetupMySQLDatabase(t, cfg)
-	SetupMySQLSchema(t, cfg)
+	SetupMariaDBSchema(t, cfg)
 	store, err := sql.NewSQLDB(sqlplugin.DbKindMain, cfg, resolver.NewNoopResolver(), log.NewTestLogger(), metrics.NoopMetricsHandler)
 	if err != nil {
-		t.Fatalf("unable to create MySQL DB: %v", err)
+		t.Fatalf("unable to create MariaDB DB: %v", err)
 	}
 	defer func() {
 		_ = store.Close()
@@ -587,14 +592,14 @@ func TestMySQLHistoryExecutionActivitySuite(t *testing.T) {
 	suite.Run(t, s)
 }
 
-func TestMySQLHistoryExecutionChildWorkflowSuite(t *testing.T) {
+func TestMariaDBHistoryExecutionChildWorkflowSuite(t *testing.T) {
 	t.Parallel()
-	cfg := NewMySQLConfig()
+	cfg := NewMariaDBConfig()
 	SetupMySQLDatabase(t, cfg)
-	SetupMySQLSchema(t, cfg)
+	SetupMariaDBSchema(t, cfg)
 	store, err := sql.NewSQLDB(sqlplugin.DbKindMain, cfg, resolver.NewNoopResolver(), log.NewTestLogger(), metrics.NoopMetricsHandler)
 	if err != nil {
-		t.Fatalf("unable to create MySQL DB: %v", err)
+		t.Fatalf("unable to create MariaDB DB: %v", err)
 	}
 	defer func() {
 		_ = store.Close()
@@ -605,14 +610,14 @@ func TestMySQLHistoryExecutionChildWorkflowSuite(t *testing.T) {
 	suite.Run(t, s)
 }
 
-func TestMySQLHistoryExecutionTimerSuite(t *testing.T) {
+func TestMariaDBHistoryExecutionTimerSuite(t *testing.T) {
 	t.Parallel()
-	cfg := NewMySQLConfig()
+	cfg := NewMariaDBConfig()
 	SetupMySQLDatabase(t, cfg)
-	SetupMySQLSchema(t, cfg)
+	SetupMariaDBSchema(t, cfg)
 	store, err := sql.NewSQLDB(sqlplugin.DbKindMain, cfg, resolver.NewNoopResolver(), log.NewTestLogger(), metrics.NoopMetricsHandler)
 	if err != nil {
-		t.Fatalf("unable to create MySQL DB: %v", err)
+		t.Fatalf("unable to create MariaDB DB: %v", err)
 	}
 	defer func() {
 		_ = store.Close()
@@ -623,14 +628,14 @@ func TestMySQLHistoryExecutionTimerSuite(t *testing.T) {
 	suite.Run(t, s)
 }
 
-func TestMySQLHistoryExecutionChasmSuite(t *testing.T) {
+func TestMariaDBHistoryExecutionChasmSuite(t *testing.T) {
 	t.Parallel()
-	cfg := NewMySQLConfig()
+	cfg := NewMariaDBConfig()
 	SetupMySQLDatabase(t, cfg)
-	SetupMySQLSchema(t, cfg)
+	SetupMariaDBSchema(t, cfg)
 	store, err := sql.NewSQLDB(sqlplugin.DbKindMain, cfg, resolver.NewNoopResolver(), log.NewTestLogger(), metrics.NoopMetricsHandler)
 	if err != nil {
-		t.Fatalf("unable to create MySQL DB: %v", err)
+		t.Fatalf("unable to create MariaDB DB: %v", err)
 	}
 	defer func() {
 		_ = store.Close()
@@ -641,14 +646,14 @@ func TestMySQLHistoryExecutionChasmSuite(t *testing.T) {
 	suite.Run(t, s)
 }
 
-func TestMySQLHistoryExecutionRequestCancelSuite(t *testing.T) {
+func TestMariaDBHistoryExecutionRequestCancelSuite(t *testing.T) {
 	t.Parallel()
-	cfg := NewMySQLConfig()
+	cfg := NewMariaDBConfig()
 	SetupMySQLDatabase(t, cfg)
-	SetupMySQLSchema(t, cfg)
+	SetupMariaDBSchema(t, cfg)
 	store, err := sql.NewSQLDB(sqlplugin.DbKindMain, cfg, resolver.NewNoopResolver(), log.NewTestLogger(), metrics.NoopMetricsHandler)
 	if err != nil {
-		t.Fatalf("unable to create MySQL DB: %v", err)
+		t.Fatalf("unable to create MariaDB DB: %v", err)
 	}
 	defer func() {
 		_ = store.Close()
@@ -659,14 +664,14 @@ func TestMySQLHistoryExecutionRequestCancelSuite(t *testing.T) {
 	suite.Run(t, s)
 }
 
-func TestMySQLHistoryExecutionSignalSuite(t *testing.T) {
+func TestMariaDBHistoryExecutionSignalSuite(t *testing.T) {
 	t.Parallel()
-	cfg := NewMySQLConfig()
+	cfg := NewMariaDBConfig()
 	SetupMySQLDatabase(t, cfg)
-	SetupMySQLSchema(t, cfg)
+	SetupMariaDBSchema(t, cfg)
 	store, err := sql.NewSQLDB(sqlplugin.DbKindMain, cfg, resolver.NewNoopResolver(), log.NewTestLogger(), metrics.NoopMetricsHandler)
 	if err != nil {
-		t.Fatalf("unable to create MySQL DB: %v", err)
+		t.Fatalf("unable to create MariaDB DB: %v", err)
 	}
 	defer func() {
 		_ = store.Close()
@@ -677,14 +682,14 @@ func TestMySQLHistoryExecutionSignalSuite(t *testing.T) {
 	suite.Run(t, s)
 }
 
-func TestMySQLHistoryExecutionSignalRequestSuite(t *testing.T) {
+func TestMariaDBHistoryExecutionSignalRequestSuite(t *testing.T) {
 	t.Parallel()
-	cfg := NewMySQLConfig()
+	cfg := NewMariaDBConfig()
 	SetupMySQLDatabase(t, cfg)
-	SetupMySQLSchema(t, cfg)
+	SetupMariaDBSchema(t, cfg)
 	store, err := sql.NewSQLDB(sqlplugin.DbKindMain, cfg, resolver.NewNoopResolver(), log.NewTestLogger(), metrics.NoopMetricsHandler)
 	if err != nil {
-		t.Fatalf("unable to create MySQL DB: %v", err)
+		t.Fatalf("unable to create MariaDB DB: %v", err)
 	}
 	defer func() {
 		_ = store.Close()
@@ -695,14 +700,14 @@ func TestMySQLHistoryExecutionSignalRequestSuite(t *testing.T) {
 	suite.Run(t, s)
 }
 
-func TestMySQLVisibilitySuite(t *testing.T) {
+func TestMariaDBVisibilitySuite(t *testing.T) {
 	t.Parallel()
-	cfg := NewMySQLConfig()
+	cfg := NewMariaDBConfig()
 	SetupMySQLDatabase(t, cfg)
-	SetupMySQLSchema(t, cfg)
+	SetupMariaDBSchema(t, cfg)
 	store, err := sql.NewSQLDB(sqlplugin.DbKindVisibility, cfg, resolver.NewNoopResolver(), log.NewTestLogger(), metrics.NoopMetricsHandler)
 	if err != nil {
-		t.Fatalf("unable to create MySQL DB: %v", err)
+		t.Fatalf("unable to create MariaDB DB: %v", err)
 	}
 	defer func() {
 		_ = store.Close()
@@ -713,25 +718,25 @@ func TestMySQLVisibilitySuite(t *testing.T) {
 	suite.Run(t, s)
 }
 
-func TestMySQLClosedConnectionError(t *testing.T) {
+func TestMariaDBClosedConnectionError(t *testing.T) {
 	t.Parallel()
-	testData, tearDown := setUpMySQLTest(t)
+	testData, tearDown := setUpMariaDBTest(t)
 	defer tearDown()
 
 	s := newConnectionSuite(t, testData.Factory)
 	suite.Run(t, s)
 }
 
-func TestMySQLQueueV2(t *testing.T) {
+func TestMariaDBQueueV2(t *testing.T) {
 	t.Parallel()
-	testData, tearDown := setUpMySQLTest(t)
+	testData, tearDown := setUpMariaDBTest(t)
 	t.Cleanup(tearDown)
 	RunQueueV2TestSuiteForSQL(t, testData.Factory)
 }
 
-func TestMySQLNexusEndpointPersistence(t *testing.T) {
+func TestMariaDBNexusEndpointPersistence(t *testing.T) {
 	t.Parallel()
-	testData, tearDown := setUpMySQLTest(t)
+	testData, tearDown := setUpMariaDBTest(t)
 	defer tearDown()
 
 	store, err := testData.Factory.NewNexusEndpointStore()

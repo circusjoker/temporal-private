@@ -106,41 +106,32 @@ func SetupMySQLDatabase(t *testing.T, cfg *config.SQL) {
 }
 
 func SetupMySQLSchema(t *testing.T, cfg *config.SQL) {
+	setupSQLSchema(t, cfg, testMySQLExecutionSchema, testMySQLVisibilitySchema)
+}
+
+// setupSQLSchema loads the given schema files into the database cfg points at.
+func setupSQLSchema(t *testing.T, cfg *config.SQL, schemaFiles ...string) {
 	db, err := sql.NewSQLAdminDB(sqlplugin.DbKindUnknown, cfg, resolver.NewNoopResolver(), log.NewTestLogger(), metrics.NoopMetricsHandler)
 	if err != nil {
-		t.Fatalf("unable to create MySQL admin DB: %v", err)
+		t.Fatalf("unable to create SQL admin DB: %v", err)
 	}
 	defer func() { _ = db.Close() }()
 
-	schemaPath, err := filepath.Abs(testMySQLExecutionSchema)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	statements, err := p.LoadAndSplitQuery([]string{schemaPath})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	for _, stmt := range statements {
-		if err = db.Exec(stmt); err != nil {
+	for _, schemaFile := range schemaFiles {
+		schemaPath, err := filepath.Abs(schemaFile)
+		if err != nil {
 			t.Fatal(err)
 		}
-	}
 
-	schemaPath, err = filepath.Abs(testMySQLVisibilitySchema)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	statements, err = p.LoadAndSplitQuery([]string{schemaPath})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	for _, stmt := range statements {
-		if err = db.Exec(stmt); err != nil {
+		statements, err := p.LoadAndSplitQuery([]string{schemaPath})
+		if err != nil {
 			t.Fatal(err)
+		}
+
+		for _, stmt := range statements {
+			if err = db.Exec(stmt); err != nil {
+				t.Fatal(err)
+			}
 		}
 	}
 }

@@ -1,5 +1,9 @@
 package sql
 
+// MariaDB half of the MySQL-family legacy query converter tests. Mirrors
+// query_converter_legacy_mysql_test.go; only the three expectations that MariaDB
+// spells differently change (no expression indexes, no MEMBER OF, no cast to json).
+
 import (
 	"fmt"
 	"testing"
@@ -10,29 +14,30 @@ import (
 )
 
 type (
-	mysqlQueryConverterSuite struct {
+	mariaDBQueryConverterSuite struct {
 		queryConverterSuite
 	}
 )
 
-func TestMySQLQueryConverterSuite(t *testing.T) {
-	s := &mysqlQueryConverterSuite{
+func TestMariaDBQueryConverterSuite(t *testing.T) {
+	s := &mariaDBQueryConverterSuite{
 		queryConverterSuite: queryConverterSuite{
-			pqc: &mysqlQueryConverter{mysqlDialect{}},
+			pqc: &mysqlQueryConverter{mariaDBDialect{}},
 		},
 	}
 	suite.Run(t, s)
 }
 
-func (s *mysqlQueryConverterSuite) TestGetCoalesceCloseTimeExpr() {
+func (s *mariaDBQueryConverterSuite) TestGetCoalesceCloseTimeExpr() {
 	expr := s.queryConverter.getCoalesceCloseTimeExpr()
 	s.Equal(
-		"coalesce(close_time, cast('9999-12-31 23:59:59' as datetime))",
+		// MariaDB has no expression indexes: the COALESCE is a generated column.
+		"close_time_or_max",
 		sqlparser.String(expr),
 	)
 }
 
-func (s *mysqlQueryConverterSuite) TestConvertKeywordListComparisonExpr() {
+func (s *mariaDBQueryConverterSuite) TestConvertKeywordListComparisonExpr() {
 	var tests = []testCase{
 		{
 			name:   "invalid operator",
@@ -48,25 +53,25 @@ func (s *mysqlQueryConverterSuite) TestConvertKeywordListComparisonExpr() {
 		{
 			name:   "valid equal expression",
 			input:  "AliasForKeywordList01 = 'foo'",
-			output: "'foo' member of (KeywordList01)",
+			output: "json_contains(KeywordList01, json_quote('foo'))",
 			err:    nil,
 		},
 		{
 			name:   "valid not equal expression",
 			input:  "AliasForKeywordList01 != 'foo'",
-			output: "not 'foo' member of (KeywordList01)",
+			output: "not json_contains(KeywordList01, json_quote('foo'))",
 			err:    nil,
 		},
 		{
 			name:   "valid in expression",
 			input:  "AliasForKeywordList01 in ('foo', 'bar')",
-			output: "json_overlaps(KeywordList01, cast('[\"foo\",\"bar\"]' as json))",
+			output: "json_overlaps(KeywordList01, '[\"foo\",\"bar\"]')",
 			err:    nil,
 		},
 		{
 			name:   "valid not in expression",
 			input:  "AliasForKeywordList01 not in ('foo', 'bar')",
-			output: "not json_overlaps(KeywordList01, cast('[\"foo\",\"bar\"]' as json))",
+			output: "not json_overlaps(KeywordList01, '[\"foo\",\"bar\"]')",
 			err:    nil,
 		},
 	}
@@ -89,7 +94,7 @@ func (s *mysqlQueryConverterSuite) TestConvertKeywordListComparisonExpr() {
 	}
 }
 
-func (s *mysqlQueryConverterSuite) TestConvertTextComparisonExpr() {
+func (s *mariaDBQueryConverterSuite) TestConvertTextComparisonExpr() {
 	var tests = []testCase{
 		{
 			name:   "invalid operator",

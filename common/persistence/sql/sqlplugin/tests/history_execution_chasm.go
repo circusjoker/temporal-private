@@ -2,7 +2,6 @@ package tests
 
 import (
 	"math/rand/v2"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -17,17 +16,42 @@ type (
 		*require.Assertions
 
 		store sqlplugin.HistoryExecutionChasm
+
+		// doubleCountsUpdatedRows records that this store reports an updated row
+		// twice in RowsAffected, so the replace counts cannot be compared.
+		doubleCountsUpdatedRows bool
 	}
+
+	// HistoryExecutionChasmSuiteOption configures the suite for a store's quirks.
+	HistoryExecutionChasmSuiteOption func(*historyExecutionChasmSuite)
 )
+
+// WithDoubleCountedUpdatedRows declares that the store under test counts an
+// updated row twice in the RowsAffected of an upsert.
+//
+// MySQL and MariaDB both do this: we set clientFoundRows on the session
+// (common/persistence/sql/sqlplugin/mysql/session/session.go), which makes
+// `INSERT ... ON DUPLICATE KEY UPDATE` report 2 for every row it updates.
+// https://dev.mysql.com/doc/refman/8.4/en/information-functions.html#function_row-count
+func WithDoubleCountedUpdatedRows() HistoryExecutionChasmSuiteOption {
+	return func(s *historyExecutionChasmSuite) {
+		s.doubleCountsUpdatedRows = true
+	}
+}
 
 func NewHistoryExecutionChasmSuite(
 	t *testing.T,
 	store sqlplugin.HistoryExecutionChasm,
+	opts ...HistoryExecutionChasmSuiteOption,
 ) *historyExecutionChasmSuite {
-	return &historyExecutionChasmSuite{
+	s := &historyExecutionChasmSuite{
 		Assertions: require.New(t),
 		store:      store,
 	}
+	for _, opt := range opts {
+		opt(s)
+	}
+	return s
 }
 
 func (s *historyExecutionChasmSuite) SetupTest() {
@@ -62,14 +86,9 @@ func (s *historyExecutionChasmSuite) runTestCase(tc *testCase) {
 		affected, err := res.RowsAffected()
 		s.NoError(err)
 
-		// We set clientFoundRows to true in our MySQL session, which makes the result count
-		// for updates not useful for comparison here, as rows that have been updated
-		// are double-counted in `INSERT ... ON DUPLICATE KEY UPDATE` statements:
-		//
-		// https://dev.mysql.com/doc/refman/8.4/en/information-functions.html#function_row-count
-		//
-		// See common/persistence/sql/sqlplugin/mysql/session/session.go
-		if !strings.Contains(strings.ToLower(s.T().Name()), "mysql") {
+		// See WithDoubleCountedUpdatedRows: on those stores the count is not
+		// comparable because updated rows are counted twice.
+		if !s.doubleCountsUpdatedRows {
 			s.Equal(int64(len(tc.ReplaceRows)), affected)
 		}
 	}

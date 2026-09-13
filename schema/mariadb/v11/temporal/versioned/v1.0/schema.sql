@@ -248,9 +248,14 @@ CREATE TABLE cluster_membership
     rpc_address          VARCHAR(15) NOT NULL,
     rpc_port             SMALLINT NOT NULL,
     role                 TINYINT NOT NULL,
-    session_start        TIMESTAMP DEFAULT '1970-01-02 00:00:01',
-    last_heartbeat       TIMESTAMP DEFAULT '1970-01-02 00:00:01',
-    record_expiry        TIMESTAMP DEFAULT '1970-01-02 00:00:01',
+    -- TIMESTAMP(6), not the plain TIMESTAMP that MySQL uses here: MySQL *rounds*
+    -- a sub-second value to the nearest second when storing into a second-precision
+    -- TIMESTAMP, while MariaDB *truncates* it (verified: '08:21:20.7' reads back as
+    -- 08:21:21 on MySQL 8.0.29 and 08:21:20 on MariaDB 11.4.13). Keeping the
+    -- fractional part avoids depending on which way the engine goes.
+    session_start        TIMESTAMP(6) DEFAULT '1970-01-02 00:00:01',
+    last_heartbeat       TIMESTAMP(6) DEFAULT '1970-01-02 00:00:01',
+    record_expiry        TIMESTAMP(6) DEFAULT '1970-01-02 00:00:01',
     INDEX (role, host_id),
     INDEX (role, last_heartbeat),
     INDEX (rpc_address, role),

@@ -14,6 +14,17 @@ services:
       - ./mysql-init:/docker-entrypoint-initdb.d
     networks:
       - temporal-dev-network
+  mariadb:
+    image: mariadb:11.4
+    container_name: temporal-dev-mariadb
+    ports:
+      - "3306:3306"
+    environment:
+      MARIADB_ROOT_PASSWORD: root
+    volumes:
+      - ./mariadb-init:/docker-entrypoint-initdb.d
+    networks:
+      - temporal-dev-network
   cassandra:
     image: cassandra:5.0
     container_name: temporal-dev-cassandra
