@@ -11,8 +11,8 @@ persistence:
     visibilityStore: visibility
 
     {{- $db := env "DB" -}}
-    {{- if not (eq $db "cassandra" "mysql8" "postgres12" "postgres12_pgx") -}}
-      {{- fail "Invalid DB value. Supported values are cassandra, mysql8, postgres12, postgres12_pgx" -}}
+    {{- if not (eq $db "cassandra" "mysql8" "mariadb10" "postgres12" "postgres12_pgx") -}}
+      {{- fail "Invalid DB value. Supported values are cassandra, mysql8, mariadb10, postgres12, postgres12_pgx" -}}
     {{- end }}
 
     datastores:
@@ -48,7 +48,9 @@ persistence:
                         advertised-hostname: {{ env "CASSANDRA_ADDRESS_TRANSLATOR_OPTIONS" }}
                     {{- end }}
                 {{- end }}
-        {{- else if eq $db "mysql8" }}
+        {{- /* mariadb10 is served by the MySQL driver, so it shares this branch
+               and reads the same MYSQL_* environment variables. */ -}}
+        {{- else if eq $db "mysql8" "mariadb10" }}
             sql:
                 pluginName: {{ $db }}
                 databaseName: {{ default "temporal" (env "DBNAME") | quote }}
@@ -104,7 +106,7 @@ persistence:
                     {{- with env "ES_SEC_VIS_INDEX" }}
                     secondary_visibility: {{ . | quote }}
                     {{- end }}
-            {{- else if eq $db "mysql8" }}
+            {{- else if eq $db "mysql8" "mariadb10" }}
             sql:
                 {{ $visibility_seeds := coalesce (env "VISIBILITY_MYSQL_SEEDS") (env "MYSQL_SEEDS") }}
                 {{ $visibility_port := coalesce (env "VISIBILITY_DB_PORT") (env "DB_PORT") "3306" }}
