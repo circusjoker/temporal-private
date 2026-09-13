@@ -51,8 +51,13 @@ Acceptance:
 
 ## Next (requested after the first acceptance pass)
 - [x] 11 MariaDB becomes its own plugin package rather than edits inside `sqlplugin/mysql`
-- [ ] 12 A real answer for unindexed KeywordList search attributes
-- [ ] 13 The agentic check runs without an LLM (mock model), and still against Ollama
+- [x] 12 A real answer for unindexed KeywordList search attributes
+- [x] 13 The agentic check runs without an LLM (mock model), and still against Ollama
+- [x] 14 Full functional suite run against MariaDB **and** MySQL as a control
+      (evidence/full-functional-suite.md): MariaDB 133/9 suites and 3294/51 subtests,
+      MySQL 130/12 and 3270/75 — MySQL fails *more*. Of the 13 MariaDB-only failures,
+      1 reproduced on a re-run while 15 new ones appeared, so the failure set is not
+      stable and identifies nothing about MariaDB.
 
 ### 11 — MariaDB is now an extension, not a patch
 `sqlplugin/mysql` is 4,478 non-test lines and its `db` implements **184 methods**, so a
