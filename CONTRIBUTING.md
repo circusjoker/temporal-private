@@ -158,6 +158,17 @@ make install-schema-mysql
 make start-mysql
 ```
 
+To run with MariaDB (the development MariaDB listens on 3307 so it can run alongside MySQL;
+override with `MARIADB_PORT` and set the same variable when running the MariaDB tests):
+```bash
+make install-schema-mariadb
+make start-mariadb
+```
+
+MariaDB is also selectable in the Docker / environment-variable config template as
+`DB=mariadb10`. It is served by the MySQL driver, so it reads the same `MYSQL_SEEDS`,
+`MYSQL_USER` and `MYSQL_PWD` variables as `DB=mysql8`.
+
 Now you can create a namespace with the Temporal CLI (While you can select any name for a namespace, we reccomend using `default` while learning, because a number of samples assume there is a namespace named `default`):
 
 ```bash

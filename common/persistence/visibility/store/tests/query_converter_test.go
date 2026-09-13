@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"cmp"
 	"encoding/json"
 	"strings"
 	"testing"
@@ -20,13 +21,14 @@ import (
 const (
 	testNamespaceName = namespace.Name("test-namespace")
 
+	mariadbStore  = "mariadb10"
 	mysqlStore    = "mysql8"
 	postgresStore = "postgres12"
 	sqliteStore   = "sqlite"
 	esStore       = "elasticsearch"
 )
 
-var sqlPlugins = []string{mysqlStore, postgresStore, sqliteStore}
+var sqlPlugins = []string{mariadbStore, mysqlStore, postgresStore, sqliteStore}
 
 type queryConverterTestCase struct {
 	name string
@@ -35,7 +37,10 @@ type queryConverterTestCase struct {
 	// out is the expected converted query: `sql` is the WHERE clause expected for every SQL
 	// plugin, and `mysql`, `postgres` and `sqlite` override it for the plugins whose output
 	// differs (mostly Text and KeywordList types); `es` is the expected Elasticsearch query.
+	// The MariaDB plugin follows the MySQL dialect, so it falls back to `mysql`; `mariadb`
+	// is only set for the expressions MariaDB spells differently (KeywordList).
 	sql      string
+	mariadb  string
 	mysql    string
 	postgres string
 	sqlite   string
@@ -44,9 +49,10 @@ type queryConverterTestCase struct {
 	// err is the expected error message for every store: most errors come from the shared
 	// front-end converter. When only some stores fail, use the store specific fields
 	// instead: sqlErr for every SQL plugin, and mysqlErr, postgresErr, sqliteErr and esErr
-	// for a single store.
+	// for a single store (mariadbErr, like `mariadb`, falls back to the MySQL one).
 	err         string
 	sqlErr      string
+	mariadbErr  string
 	mysqlErr    string
 	postgresErr string
 	sqliteErr   string
@@ -68,6 +74,9 @@ func (tc *queryConverterTestCase) expected(store string) (out string, errMsg str
 
 	var outOverride, errOverride string
 	switch store {
+	case mariadbStore:
+		outOverride = cmp.Or(tc.mariadb, tc.mysql)
+		errOverride = cmp.Or(tc.mariadbErr, tc.mysqlErr)
 	case mysqlStore:
 		outOverride, errOverride = tc.mysql, tc.mysqlErr
 	case postgresStore:
@@ -703,6 +712,7 @@ var queryConverterTestCases = []queryConverterTestCase{
 	{
 		name:     "KeywordList equal",
 		in:       "AliasForKeywordList01 = 'foo'",
+		mariadb:  "TemporalNamespaceDivision is null and json_contains(KeywordList01, json_quote('foo'))",
 		mysql:    "TemporalNamespaceDivision is null and 'foo' member of (KeywordList01)",
 		postgres: "TemporalNamespaceDivision is null and KeywordList01 @> jsonb_build_array('foo')",
 		sqlite:   `TemporalNamespaceDivision is null and rowid in (select rowid from executions_visibility_fts_keyword_list where executions_visibility_fts_keyword_list = 'KeywordList01 : ("foo")')`,
@@ -711,6 +721,7 @@ var queryConverterTestCases = []queryConverterTestCase{
 	{
 		name:     "KeywordList not equal",
 		in:       "AliasForKeywordList01 != 'foo'",
+		mariadb:  "TemporalNamespaceDivision is null and (not json_contains(KeywordList01, json_quote('foo')))",
 		mysql:    "TemporalNamespaceDivision is null and (not 'foo' member of (KeywordList01))",
 		postgres: "TemporalNamespaceDivision is null and (not KeywordList01 @> jsonb_build_array('foo'))",
 		sqlite:   `TemporalNamespaceDivision is null and rowid not in (select rowid from executions_visibility_fts_keyword_list where executions_visibility_fts_keyword_list = 'KeywordList01 : ("foo")')`,
@@ -719,6 +730,7 @@ var queryConverterTestCases = []queryConverterTestCase{
 	{
 		name:     "KeywordList in",
 		in:       "AliasForKeywordList01 IN ('foo', 'bar')",
+		mariadb:  `TemporalNamespaceDivision is null and json_overlaps(KeywordList01, '["foo","bar"]')`,
 		mysql:    `TemporalNamespaceDivision is null and json_overlaps(KeywordList01, cast('["foo","bar"]' as json))`,
 		postgres: "TemporalNamespaceDivision is null and (KeywordList01 @> jsonb_build_array('foo') or KeywordList01 @> jsonb_build_array('bar'))",
 		sqlite:   `TemporalNamespaceDivision is null and rowid in (select rowid from executions_visibility_fts_keyword_list where executions_visibility_fts_keyword_list = 'KeywordList01 : ("foo" OR "bar")')`,
@@ -727,6 +739,7 @@ var queryConverterTestCases = []queryConverterTestCase{
 	{
 		name:     "KeywordList not in",
 		in:       "AliasForKeywordList01 NOT IN ('foo', 'bar')",
+		mariadb:  `TemporalNamespaceDivision is null and (not json_overlaps(KeywordList01, '["foo","bar"]'))`,
 		mysql:    `TemporalNamespaceDivision is null and (not json_overlaps(KeywordList01, cast('["foo","bar"]' as json)))`,
 		postgres: "TemporalNamespaceDivision is null and (not (KeywordList01 @> jsonb_build_array('foo') or KeywordList01 @> jsonb_build_array('bar')))",
 		sqlite:   `TemporalNamespaceDivision is null and rowid not in (select rowid from executions_visibility_fts_keyword_list where executions_visibility_fts_keyword_list = 'KeywordList01 : ("foo" OR "bar")')`,
@@ -735,6 +748,7 @@ var queryConverterTestCases = []queryConverterTestCase{
 	{
 		name:     "KeywordList predefined search attribute",
 		in:       "TemporalChangeVersion = 'foo'",
+		mariadb:  "TemporalNamespaceDivision is null and json_contains(TemporalChangeVersion, json_quote('foo'))",
 		mysql:    "TemporalNamespaceDivision is null and 'foo' member of (TemporalChangeVersion)",
 		postgres: "TemporalNamespaceDivision is null and TemporalChangeVersion @> jsonb_build_array('foo')",
 		sqlite:   `TemporalNamespaceDivision is null and rowid in (select rowid from executions_visibility_fts_keyword_list where executions_visibility_fts_keyword_list = 'TemporalChangeVersion : ("foo")')`,
@@ -882,6 +896,7 @@ var queryConverterTestCases = []queryConverterTestCase{
 	{
 		name:     "predefined search attribute without Temporal prefix",
 		in:       "PauseInfo = 'foo'",
+		mariadb:  "TemporalNamespaceDivision is null and json_contains(TemporalPauseInfo, json_quote('foo'))",
 		mysql:    "TemporalNamespaceDivision is null and 'foo' member of (TemporalPauseInfo)",
 		postgres: "TemporalNamespaceDivision is null and TemporalPauseInfo @> jsonb_build_array('foo')",
 		sqlite:   `TemporalNamespaceDivision is null and rowid in (select rowid from executions_visibility_fts_keyword_list where executions_visibility_fts_keyword_list = 'TemporalPauseInfo : ("foo")')`,

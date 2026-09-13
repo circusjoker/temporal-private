@@ -124,6 +124,10 @@ jobs:
               persistence_type: sql
               persistence_driver: sqlite
               containers: []
+            mariadb10:
+              persistence_type: sql
+              persistence_driver: mariadb10
+              containers: [mariadb]
             mysql8:
               persistence_type: sql
               persistence_driver: mysql8
@@ -327,7 +331,7 @@ jobs:
     needs: [pre-build]
     runs-on: ubuntu-24.04-arm
     env:
-      CONTAINERS: cassandra mysql postgresql elasticsearch
+      CONTAINERS: cassandra mysql mariadb postgresql elasticsearch
       TEST_TIMEOUT: 10m
       GITHUB_TIMEOUT: 15
     steps:

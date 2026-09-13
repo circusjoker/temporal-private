@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"go.temporal.io/server/common/config"
+	"go.temporal.io/server/common/persistence/sql/sqlplugin/mariadb"
 	"go.temporal.io/server/common/persistence/sql/sqlplugin/mysql"
 	"go.temporal.io/server/common/persistence/sql/sqlplugin/postgresql"
 	"go.temporal.io/server/common/persistence/sql/sqlplugin/sqlite"
@@ -18,6 +19,10 @@ const (
 	testMySQLUser      = "temporal"
 	testMySQLPassword  = "temporal"
 	testMySQLSchemaDir = "schema/mysql/v8"
+
+	testMariaDBUser      = "temporal"
+	testMariaDBPassword  = "temporal"
+	testMariaDBSchemaDir = "schema/mariadb/v10"
 
 	testPostgreSQLUser      = "temporal"
 	testPostgreSQLPassword  = "temporal"
@@ -37,6 +42,8 @@ func GetTestClusterOption(storeType, driver string) *TestBaseOptions {
 		switch driver {
 		case mysql.PluginName:
 			return GetMySQLTestClusterOption()
+		case mariadb.PluginName:
+			return GetMariaDBTestClusterOption()
 		case postgresql.PluginName, postgresql.PluginNamePGX:
 			return GetPostgreSQLTestClusterOption(driver, nil)
 		case sqlite.PluginName:
@@ -72,6 +79,20 @@ func GetMySQLTestClusterOption() *TestBaseOptions {
 		DBHost:          environment.GetMySQLAddress(),
 		DBPort:          environment.GetMySQLPort(),
 		SchemaDir:       testMySQLSchemaDir,
+		StoreType:       config.StoreTypeSQL,
+	}
+}
+
+// GetMariaDBTestClusterOption return test options
+func GetMariaDBTestClusterOption() *TestBaseOptions {
+	return &TestBaseOptions{
+		SQLDBPluginName: mariadb.PluginName,
+		DBName:          GenerateRandomDBName(),
+		DBUsername:      testMariaDBUser,
+		DBPassword:      testMariaDBPassword,
+		DBHost:          environment.GetMariaDBAddress(),
+		DBPort:          environment.GetMariaDBPort(),
+		SchemaDir:       testMariaDBSchemaDir,
 		StoreType:       config.StoreTypeSQL,
 	}
 }

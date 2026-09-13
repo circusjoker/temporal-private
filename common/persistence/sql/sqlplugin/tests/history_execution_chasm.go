@@ -62,14 +62,15 @@ func (s *historyExecutionChasmSuite) runTestCase(tc *testCase) {
 		affected, err := res.RowsAffected()
 		s.NoError(err)
 
-		// We set clientFoundRows to true in our MySQL session, which makes the result count
-		// for updates not useful for comparison here, as rows that have been updated
-		// are double-counted in `INSERT ... ON DUPLICATE KEY UPDATE` statements:
+		// We set clientFoundRows to true in our MySQL and MariaDB sessions, which makes the
+		// result count for updates not useful for comparison here, as rows that have been
+		// updated are double-counted in `INSERT ... ON DUPLICATE KEY UPDATE` statements:
 		//
 		// https://dev.mysql.com/doc/refman/8.4/en/information-functions.html#function_row-count
 		//
-		// See common/persistence/sql/sqlplugin/mysql/session/session.go
-		if !strings.Contains(strings.ToLower(s.T().Name()), "mysql") {
+		// See common/persistence/sql/sqlplugin/{mysql,mariadb}/session/session.go
+		testName := strings.ToLower(s.T().Name())
+		if !strings.Contains(testName, "mysql") && !strings.Contains(testName, "mariadb") {
 			s.Equal(int64(len(tc.ReplaceRows)), affected)
 		}
 	}

@@ -46,7 +46,7 @@ persistence:
                         advertised-hostname: {{ default .Env.CASSANDRA_ADDRESS_TRANSLATOR_OPTIONS "" }}
                     {{- end }}
                 {{- end }}
-        {{- else if eq $db "mysql8" }}
+        {{- else if eq $db "mysql8" "mariadb10" }}
         default:
             sql:
                 pluginName: "{{ $db }}"

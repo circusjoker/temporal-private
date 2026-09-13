@@ -82,6 +82,7 @@ jobs:
           - cass_os2
           - cass_os3
           - sqlite
+          - mariadb10
           - mysql8
           - postgres12
           - postgres12_pgx
@@ -108,6 +109,10 @@ jobs:
             persistence_type: sql
             persistence_driver: sqlite
             containers: []
+          - name: mariadb10
+            persistence_type: sql
+            persistence_driver: mariadb10
+            containers: [mariadb]
           - name: mysql8
             persistence_type: sql
             persistence_driver: mysql8

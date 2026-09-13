@@ -46,7 +46,9 @@ persistence:
                         advertised-hostname: {{ default "" (env "CASSANDRA_ADDRESS_TRANSLATOR_OPTIONS") }}
                     {{- end }}
                 {{- end }}
-        {{- else if eq $db "mysql8" }}
+        {{- /* mariadb10 is served by the MySQL driver, so it shares this branch
+               and reads the same MYSQL_* environment variables. */ -}}
+        {{- else if eq $db "mysql8" "mariadb10" }}
         default:
             sql:
                 pluginName: "{{ $db }}"

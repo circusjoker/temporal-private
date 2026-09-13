@@ -42,7 +42,9 @@ func PathsByDir(dbSubDir string) []string {
 
 func PathsByDB(dbName string) []string {
 	if dbName == "sql" {
-		return append(PathsByDir("mysql"), PathsByDir("postgresql")...)
+		paths := PathsByDir("mysql")
+		paths = append(paths, PathsByDir("mariadb")...)
+		return append(paths, PathsByDir("postgresql")...)
 	}
 	return PathsByDir(dbName)
 }

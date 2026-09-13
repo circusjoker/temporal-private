@@ -39,6 +39,15 @@ CREATE TABLE current_executions(
 );
 `
 
+	testMariaDBExecutionSchemaFile        = "../../schema/mariadb/v10/temporal/schema.sql"
+	testMariaDBVisibilitySchemaFile       = "../../schema/mariadb/v10/visibility/schema.sql"
+	testMariaDBExecutionSchemaVersionDir  = "../../schema/mariadb/v10/temporal/versioned"
+	testMariaDBVisibilitySchemaVersionDir = "../../schema/mariadb/v10/visibility/versioned"
+
+	// The probe DDL is plain SQL that MariaDB accepts verbatim, so it is shared
+	// with MySQL rather than duplicated.
+	testMariaDBQuery = testMySQLQuery
+
 	testPostgreSQLExecutionSchemaFile        = "../../schema/postgresql/v12/temporal/schema.sql"
 	testPostgreSQLVisibilitySchemaFile       = "../../schema/postgresql/v12/visibility/schema.sql"
 	testPostgreSQLExecutionSchemaVersionDir  = "../../schema/postgresql/v12/temporal/versioned"

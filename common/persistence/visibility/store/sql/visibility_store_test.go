@@ -9,6 +9,7 @@ import (
 	"go.temporal.io/server/chasm"
 	"go.temporal.io/server/common/log"
 	"go.temporal.io/server/common/metrics"
+	"go.temporal.io/server/common/persistence/sql/sqlplugin/mariadb"
 	"go.temporal.io/server/common/persistence/sql/sqlplugin/mysql"
 	"go.temporal.io/server/common/persistence/sql/sqlplugin/postgresql"
 	"go.temporal.io/server/common/persistence/sql/sqlplugin/sqlite"
@@ -18,6 +19,7 @@ import (
 
 var pluginNames = []string{
 	mysql.PluginName,
+	mariadb.PluginName,
 	postgresql.PluginName,
 	sqlite.PluginName,
 }
