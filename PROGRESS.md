@@ -289,9 +289,38 @@ template lines 52 (`default`) and 82 (`visibility`). The same finding calls the 
 uncommitted; it was committed in `fe641e323`, before the verdict was written but after
 the commit the evaluator was pointed at.
 
-**Still open, accepted, not fixed:** the Bool generated column diverges from MySQL on
-*off-contract* JSON — for a JSON number `1` MariaDB yields 0 where MySQL yields 1, and
-for JSON `"true"`/`null` MariaDB stores a value where MySQL raises ERROR 3156. Correct
-for real JSON booleans, which is all the search-attribute encoder produces. Verdict 05
-rated it LOW and could not find a path that writes such a value, but did not prove none
-exists — treat as unverified rather than ruled out.
+**Closed: the Bool divergence cannot be reached through the server.** Verdict 05 (S7-3)
+found that the MariaDB Bool column disagrees with MySQL on *off-contract* JSON — a JSON
+number `1` gives 0 where MySQL gives 1, and `"true"`/`null` store a value where MySQL
+raises ERROR 3156. It rated this LOW but could not prove no path writes such a value.
+Traced and pinned:
+
+    prepareSearchAttributesForDb (visibility_store.go:781)
+      -> searchattribute.Decode(request.SearchAttributes, &saTypeMap, false)
+        -> sadefs.DecodeValue(payload, INDEXED_VALUE_TYPE_BOOL, ...)
+          -> decodeValueTyped[bool]  -- json.Unmarshal into *bool, then []bool
+
+A Bool-typed attribute therefore yields a Go `bool` or an error; on error `Decode` sets
+the value to nil and `prepareSearchAttributesForDb` deletes nil values before the write.
+So a Bool column only ever receives JSON `true`/`false`, or nothing.
+`common/searchattribute/bool_decode_invariant_test.go` locks this down with 10 cases
+(number 1/0, string "true"/"false", null, object, bare string all dropped; true/false and
+a single-element list preserved) and says in its comment that a failure means the MariaDB
+schema needs revisiting, not just the test. **No functional impact.**
+
+### MariaDB stands alone — MySQL container stopped
+`docker stop temporal-dev-mysql` (port 3306 closed, nothing else listening), then the
+whole acceptance re-run against MariaDB only:
+
+```
+cluster health                      SERVING
+a brand-new smoke workflow          "Hello, MariaDB! doubled=42 nudges=1", COMPLETED
+web UI                              HTTP 200, list + history answering
+persistence suites (TestMariaDB)    44 suites / 477 subtests / 0 FAIL / 2 SKIP
+temporal-sql-tool CLI (TestMariaDB) ok
+functional visibility suites        3 suites / 65 subtests / 0 FAIL
+```
+
+The MySQL container is **only** needed to run the `TestMySQL*` control suites — with it
+stopped those fail to connect, which is expected, not a regression. Nothing about running
+Temporal on MariaDB requires it.
