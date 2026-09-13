@@ -117,3 +117,57 @@ func TestBuildKeywordListRows(t *testing.T) {
 		require.Error(t, err)
 	})
 }
+
+// TestKeywordListAttrSourcesMatchSchema fails if a keyword list is attributed to
+// the wrong table.
+//
+// This is the load-bearing half of the schema guard, and it was missing:
+// TestKeywordListAttrsMatchSchema only checks the *names*, so flipping
+// KeywordList03 from custom_search_attributes to executions_visibility left every
+// test in the package passing. A wrong source silently reintroduces exactly the
+// false negative this design exists to kill -- the index would follow a table
+// whose content the query does not read.
+func TestKeywordListAttrSourcesMatchSchema(t *testing.T) {
+	t.Parallel()
+	r := require.New(t)
+
+	schema, err := os.ReadFile("../../../../../schema/mariadb/v11/visibility/schema.sql")
+	r.NoError(err)
+
+	tableNames := map[string]sourceTable{
+		"executions_visibility":    sourceExecutions,
+		"custom_search_attributes": sourceCustom,
+		"chasm_search_attributes":  sourceChasm,
+	}
+	createRe := regexp.MustCompile(`(?i)^CREATE TABLE (?:IF NOT EXISTS )?(\w+)`)
+	colRe := regexp.MustCompile(`^\s+(\w+)\s+JSON\s+GENERATED ALWAYS AS`)
+
+	// Walk the schema, tracking which CREATE TABLE block each JSON generated
+	// column falls in.
+	tableOf := map[string]sourceTable{}
+	var current sourceTable
+	inTable := false
+	for _, line := range strings.Split(string(schema), "\n") {
+		if m := createRe.FindStringSubmatch(line); m != nil {
+			current, inTable = tableNames[m[1]], false
+			if _, known := tableNames[m[1]]; known {
+				inTable = true
+			}
+			continue
+		}
+		if inTable {
+			if m := colRe.FindStringSubmatch(line); m != nil {
+				tableOf[m[1]] = current
+			}
+		}
+	}
+	r.NotEmpty(tableOf, "found no JSON generated columns -- has the schema moved?")
+
+	for _, attr := range keywordListAttrs {
+		want, ok := tableOf[attr.Name]
+		r.True(ok, "%s is in keywordListAttrs but not in the schema", attr.Name)
+		r.Equal(want, attr.Source,
+			"%s is attributed to the wrong table; the index would follow a table "+
+				"whose content the query does not read", attr.Name)
+	}
+}

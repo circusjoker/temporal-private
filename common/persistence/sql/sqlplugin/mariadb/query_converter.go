@@ -84,12 +84,16 @@ func (d dialect) ConvertKeywordListComparisonExpr(
 			return &sqlparser.NotExpr{Expr: jsonExpr}, nil
 		}
 		// No side-table half for IN. Measured on 200k executions,
-		// `BuildIds in (b0..b9)` matching 40,000 rows went from 1.8ms to 450ms
-		// when the lookup was added: the semi-join inverts the driving table and
+		// `BuildIds in (b0..b9)` matching 40,000 rows costs 2ms without the
+		// lookup and 654ms with it: the semi-join inverts the driving table and
 		// throws away the ORDER BY ... LIMIT early-stop that makes the ordered
-		// index fast. A single-value `=` does not have that problem, so it keeps
-		// the lookup. IN therefore performs exactly as it did before the side
-		// table existed -- no gain, but no regression either.
+		// index fast.
+		//
+		// A single-value `=` pays the same cost in kind but ~60x smaller --
+		// 45.8ms against 11.3ms json-only at 4,000 matches -- which is worth it
+		// for turning a selective match from 1388ms into 2.4ms. At IN's
+		// magnitude it is not. So IN performs exactly as it did before the side
+		// table existed: no gain, but no regression either.
 		return jsonExpr, nil
 
 	default:

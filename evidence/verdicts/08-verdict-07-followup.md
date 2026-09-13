@@ -48,8 +48,9 @@ The probe asserts `db.(sqlplugin.Conn)`, which also exercises the K6 parity fix 
 ## K4 — the `IN` regression is gone, and the claim is corrected
 
 `IN` no longer emits the side-table lookup. It now performs exactly as it did before the
-side table existed — measured at 28 ms on the 200k-row `kltest` set, against the
-evaluator's 437–563 ms with the lookup. Only single-value `=` uses the index, which is
+side table existed. My own figure of 28 ms was a cold-cache measurement and does not
+reproduce; verdict 09 measured 2.03 ms median on the 200k-row `kltest` set against
+654 ms median with the lookup re-attached, so the fix is better than written here. Only single-value `=` uses the index, which is
 where the 1400 ms → 1 ms win is. PROGRESS.md's "~3x on the middle band" wording is
 replaced with the measured `IN` numbers.
 
