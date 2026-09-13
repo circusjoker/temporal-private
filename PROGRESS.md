@@ -34,7 +34,15 @@ Acceptance:
       MySQL too, so store-agnostic).
 
 ## In progress
-- [ ] 10 Evaluator verdicts saved under `evidence/verdicts/`
+- [~] 10 Evaluator verdicts — **1 of 3 delivered**
+  - `evidence/verdicts/01-schema-and-plugin.md` — NEEDS_WORK on `0f09df5f8`. Both findings
+    were real; both are fixed and re-verified in
+    `evidence/verdicts/02-verdict-01-followup.md`.
+  - `evidence/verdicts/03-verdicts-not-delivered.md` — the other two evaluator runs
+    finished but their reports never reached this session, after four requests. Items
+    05-09 therefore have raw evidence (`evidence/acceptance-rerun.md`) but **no
+    independent review**. Re-dispatch them; see that file for the criteria and for the
+    instruction that makes delivery work.
 
 ## Notes / findings
 - Recon (2026-09-13): main `schema/mysql/v8/temporal/schema.sql` (415 lines) uses **no**
@@ -103,7 +111,9 @@ API key. Ran with `gpt-oss:20b`.
 
 - **Unmodified sample against MariaDB:** workflow reached
   `WORKFLOW_EXECUTION_COMPLETED` (23 events, 3 `invoke_model_activity` round trips), but
-  the agent's `get_weather` tool call failed and the haiku said so.
+  the agent's `get_weather` tool call failed and the haiku said so. (That was a 23-event
+  run; `eval-e2e` later re-ran the same unmodified sample, and the run now stored under
+  that workflow id is its 35-event one, also COMPLETED.)
 - **Cause (not ours):** openai-agents 0.19.4 runs *synchronous* `@function_tool`s through
   `asyncio.to_thread` -> `loop.run_in_executor`, which Temporal's deterministic workflow
   event loop rejects with `NotImplementedError`. Surfaced by re-running the sample with
@@ -211,3 +221,9 @@ MariaDB:
   unset, which `GetMariaDBTestClusterOption()` never leaves unset, so nothing was broken
   — but the latent panic is closed anyway.
 - Everything else is test fixtures or the `--pl` flag default.
+
+### `make start-mariadb` verified for real
+The server was stopped and restarted through the Makefile target (not the `--env` form
+used earlier): healthy in 2s, `workflow count` and a `MdbBool = true` filter both answered
+from MariaDB. `evidence/acceptance-rerun.md` is the raw output of a full acceptance pass
+against that server.
