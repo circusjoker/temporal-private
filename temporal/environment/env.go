@@ -29,7 +29,9 @@ const (
 
 	mariaDBSeedsEnv    = "MARIADB_SEEDS"
 	mariaDBPortEnv     = "MARIADB_PORT"
-	mariaDBDefaultPort = 3306
+	// MariaDB listens on 3307 in the development and CI docker-compose files so that it
+	// can run side by side with MySQL on 3306.
+	mariaDBDefaultPort = 3307
 
 	esSeedsEnv       = "ES_SEEDS"
 	esPortEnv        = "ES_PORT"

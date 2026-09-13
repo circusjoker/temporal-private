@@ -146,6 +146,8 @@ COVERPKG_FLAG 		    = -coverpkg=./...
 # DB
 SQL_USER ?= temporal
 SQL_PASSWORD ?= temporal
+# The development MariaDB runs on 3307 so it can coexist with MySQL on 3306.
+MARIADB_PORT ?= 3307
 
 # Only prints output if the exit code is non-zero
 define silent_exec
@@ -643,6 +645,19 @@ install-schema-cass-es: temporal-cassandra-tool install-schema-es
 	./temporal-cassandra-tool -k $(TEMPORAL_DB) setup-schema -v 0.0
 	./temporal-cassandra-tool -k $(TEMPORAL_DB) update-schema -d ./schema/cassandra/temporal/versioned
 
+install-schema-mariadb: install-schema-mariadb10
+
+install-schema-mariadb10: temporal-sql-tool
+	@printf $(COLOR) "Install MariaDB schema..."
+	./temporal-sql-tool -u $(SQL_USER) --pw $(SQL_PASSWORD) -p $(MARIADB_PORT) --pl mariadb10 --db $(TEMPORAL_DB) drop -f
+	./temporal-sql-tool -u $(SQL_USER) --pw $(SQL_PASSWORD) -p $(MARIADB_PORT) --pl mariadb10 --db $(TEMPORAL_DB) create
+	./temporal-sql-tool -u $(SQL_USER) --pw $(SQL_PASSWORD) -p $(MARIADB_PORT) --pl mariadb10 --db $(TEMPORAL_DB) setup-schema -v 0.0
+	./temporal-sql-tool -u $(SQL_USER) --pw $(SQL_PASSWORD) -p $(MARIADB_PORT) --pl mariadb10 --db $(TEMPORAL_DB) update-schema -d ./schema/mariadb/v10/temporal/versioned
+	./temporal-sql-tool -u $(SQL_USER) --pw $(SQL_PASSWORD) -p $(MARIADB_PORT) --pl mariadb10 --db $(VISIBILITY_DB) drop  -f
+	./temporal-sql-tool -u $(SQL_USER) --pw $(SQL_PASSWORD) -p $(MARIADB_PORT) --pl mariadb10 --db $(VISIBILITY_DB) create
+	./temporal-sql-tool -u $(SQL_USER) --pw $(SQL_PASSWORD) -p $(MARIADB_PORT) --pl mariadb10 --db $(VISIBILITY_DB) setup-schema -v 0.0
+	./temporal-sql-tool -u $(SQL_USER) --pw $(SQL_PASSWORD) -p $(MARIADB_PORT) --pl mariadb10 --db $(VISIBILITY_DB) update-schema -d ./schema/mariadb/v10/visibility/versioned
+
 install-schema-mysql: install-schema-mysql8
 
 install-schema-mysql8: temporal-sql-tool
@@ -746,6 +761,11 @@ start-cass-es-custom: temporal-server
 
 start-es-fi: temporal-server
 	./temporal-server --config-file config/development-cass-es-fi.yaml --allow-no-auth start
+
+start-mariadb: start-mariadb10
+
+start-mariadb10: temporal-server
+	./temporal-server --config-file config/development-mariadb10.yaml --allow-no-auth start
 
 start-mysql: start-mysql8
 

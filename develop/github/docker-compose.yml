@@ -31,6 +31,21 @@ services:
       !!merge <<: *healthcheck-defaults
       test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -proot"]
 
+  mariadb:
+    image: mariadb:11.4
+    # 3307 on the host so MariaDB and MySQL can both run in the same job.
+    ports:
+      - "3307:3306"
+    environment:
+      MARIADB_ROOT_PASSWORD: root
+    command: --max-connections=500
+    # The MySQL init script only creates the temporal user, which MariaDB accepts verbatim.
+    volumes:
+      - ./mysql-init:/docker-entrypoint-initdb.d
+    healthcheck:
+      !!merge <<: *healthcheck-defaults
+      test: ["CMD-SHELL", "mariadb-admin ping -h localhost -uroot -proot"]
+
   postgresql:
     image: postgres:13.5
     ports:
