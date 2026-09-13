@@ -148,3 +148,15 @@ ran the same statements against both engines:
 ### Test-environment note
 `go test ./tools/tests/` fails 4 CQL/Cassandra suites, but it fails them identically on
 the unmodified tree (verified with `git stash`) — no Cassandra is running here.
+
+### Making MariaDB usable, not just possible
+- `docker/config_template.yaml`: the `mysql8` branch now also matches `mariadb`, so the
+  official image accepts `DB=mariadb` with the existing `MYSQL_*` env vars. Verified by
+  rendering the template for both values (`/tmp/tmplcheck/main.go`): each produces
+  `pluginName: "mariadb"` for both the default and the visibility datastore.
+- `make start-mariadb`, `config/development-mariadb.yaml`, a `mariadb` service in
+  `develop/docker-compose/docker-compose.yml`, and CONTRIBUTING/tools-sql-README entries.
+- The embedded-schema path works too, not just `-d <dir>`:
+  `--schema-name mariadb/v11/visibility` installs 5 tables at version 1.0, and
+  `temporal-sql-tool setup-schema --help` now lists `mariadb/v11/temporal` and
+  `mariadb/v11/visibility`.

@@ -44,3 +44,15 @@ You can only upgrade to a new version after the initial setup done above.
 ./temporal-sql-tool --ep $SQL_HOST -p $port --plugin mysql8 --db temporal_visibility update-schema -d ./schema/mysql/v8/visibility/versioned -v x.x    -- executes the upgrade to version x.x
 ```
 
+## MariaDB
+
+MariaDB uses the `mariadb` plugin and its own schema directory. It shares the
+MySQL wire protocol and connection flags, so every command above works with
+`--plugin mariadb` and `mariadb/v11/...` in place of `mysql8` and `mysql/v8/...`:
+
+```
+./temporal-sql-tool --ep $SQL_HOST -p $port --plugin mariadb --db temporal update-schema -d ./schema/mariadb/v11/temporal/versioned
+./temporal-sql-tool --ep $SQL_HOST -p $port --plugin mariadb --db temporal_visibility update-schema -d ./schema/mariadb/v11/visibility/versioned
+```
+
+Or just `make install-schema-mariadb`.

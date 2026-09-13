@@ -766,6 +766,9 @@ start-mysql8: temporal-server
 start-mysql-es: temporal-server
 	./temporal-server --config-file config/development-mysql-es.yaml --allow-no-auth start
 
+start-mariadb: temporal-server
+	./temporal-server --config-file config/development-mariadb.yaml --allow-no-auth start
+
 start-postgres: start-postgres12
 
 start-postgres12: temporal-server
