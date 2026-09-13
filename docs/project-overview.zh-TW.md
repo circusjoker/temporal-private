@@ -4,6 +4,7 @@
 > 更深入的內部設計請看 [docs/architecture/](./architecture/README.md)；
 > 想直接看「一個請求在程式碼裡怎麼跑」請看 [請求流程導覽](./request-flow.zh-TW.md)；
 > 想知道「狀態存在哪、怎麼保證一致」請看 [資料模型與持久層導覽](./data-model.zh-TW.md)。
+> 想知道「跑起來之後長什麼樣、shard 歸誰管、設定從哪來」請看 [執行期拓樸導覽](./runtime-topology.zh-TW.md)。
 
 ## 一句話總結
 
@@ -79,8 +80,9 @@ make proto           # 重新產生 proto 相關程式碼
 
 1. [`docs/request-flow.zh-TW.md`](./request-flow.zh-TW.md) — 一個 Workflow 從 Start 到 Activity 完成，逐個檔案的程式碼路徑。
 2. [`docs/data-model.zh-TW.md`](./data-model.zh-TW.md) — 狀態存在哪張表、shard 與 range_id 怎麼保證一致性。
-3. `docs/architecture/README.md` — 系統全貌與 Workflow/Activity Task 流程。
-4. `docs/architecture/workflow-lifecycle.md` — 一個 Workflow 從 start 到 complete 的序列圖。
-5. `docs/architecture/history-service.md`、`matching-service.md` — 兩個最核心服務的內部機制。
-6. `docs/architecture/chasm.md` — 新一代狀態機框架（理解 repo 未來走向的關鍵）。
-7. `service/history/README.md`、`service/matching/fairness.md` — 更貼近程式碼的說明。
+3. [`docs/runtime-topology.zh-TW.md`](./runtime-topology.zh-TW.md) — 一個 binary 怎麼變成叢集：fx 組裝、membership、shard 擁有權、兩套設定、優雅上下線。
+4. `docs/architecture/README.md` — 系統全貌與 Workflow/Activity Task 流程。
+5. `docs/architecture/workflow-lifecycle.md` — 一個 Workflow 從 start 到 complete 的序列圖。
+6. `docs/architecture/history-service.md`、`matching-service.md` — 兩個最核心服務的內部機制。
+7. `docs/architecture/chasm.md` — 新一代狀態機框架（理解 repo 未來走向的關鍵）。
+8. `service/history/README.md`、`service/matching/fairness.md` — 更貼近程式碼的說明。
