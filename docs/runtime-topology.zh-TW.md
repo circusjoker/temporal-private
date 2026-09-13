@@ -297,4 +297,5 @@ sed -n '1,15p' config/development-sqlite.yaml
 - 想看 history 服務內部的佇列處理框架 → [docs/architecture/history-service.md](./architecture/history-service.md)
 - 想看 matching 的分區轉發與 backlog → [docs/architecture/matching-service.md](./architecture/matching-service.md)
 - 想看 worker 角色到底跑了哪些系統 workflow → [能力地圖第 4 節](./feature-map.zh-TW.md)
+- 想知道 shard 被搶走／寫入結果不明時系統怎麼收斂 → [可靠性與失敗處理導覽第 7 節](./reliability.zh-TW.md)
 - 想在本機把這套拓樸跑起來（含 XDC 三叢集） → [開發流程導覽](./dev-workflow.zh-TW.md)

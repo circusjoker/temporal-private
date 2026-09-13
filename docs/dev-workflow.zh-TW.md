@@ -306,4 +306,5 @@ grep -nE '^  [a-z0-9-]+:' develop/docker-compose/docker-compose.yml
 - [資料模型與持久層導覽](./data-model.zh-TW.md) — 為什麼動到 `common/persistence/` 會觸發全量 CI。
 - [執行期拓樸導覽](./runtime-topology.zh-TW.md) — 本機設定檔與正式部署設定的關係。
 - [能力地圖](./feature-map.zh-TW.md) — 新增 RPC 時它會落在哪個 service 面上。
+- [可靠性與失敗處理導覽](./reliability.zh-TW.md) — 為什麼測試預設帶 `-race`／`-shuffle`：這套系統本來就充滿重試與重排。
 - [`CONTRIBUTING.md`](../CONTRIBUTING.md)、[`docs/development/testing.md`](./development/testing.md) — 英文權威版。

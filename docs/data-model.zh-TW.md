@@ -336,4 +336,5 @@ make install-schema-mysql8      # 安裝 schema（另有 -cass-es / -postgresql1
 4. `common/persistence/data_interfaces.go` — 所有持久層請求/回應結構的權威定義，值得從頭翻一次。
 5. [`docs/runtime-topology.zh-TW.md`](./runtime-topology.zh-TW.md) — shard 到底是誰認領的、`range_id` 租約在整個擁有權機制裡的位置。
 6. [`docs/feature-map.zh-TW.md`](./feature-map.zh-TW.md) — 這些內部結構被 `AdminService` 開成哪些運維 API（`GetShard`、`ListHistoryTasks`、DLQ 系列）。
-7. [`docs/dev-workflow.zh-TW.md`](./dev-workflow.zh-TW.md) — 為什麼一動到 `common/persistence/` 或 `schema/`，CI 就會對八種資料庫跑全量測試。
+7. [`docs/reliability.zh-TW.md`](./reliability.zh-TW.md) — 內部佇列任務被讀出來之後的完整生命週期：誰在什麼時候才真的把那些列刪掉。
+8. [`docs/dev-workflow.zh-TW.md`](./dev-workflow.zh-TW.md) — 為什麼一動到 `common/persistence/` 或 `schema/`，CI 就會對八種資料庫跑全量測試。

@@ -6,6 +6,7 @@
 > 想知道「狀態存在哪、怎麼保證一致」請看 [資料模型與持久層導覽](./data-model.zh-TW.md)。
 > 想知道「跑起來之後長什麼樣、shard 歸誰管、設定從哪來」請看 [執行期拓樸導覽](./runtime-topology.zh-TW.md)。
 > 想知道「這台 server 到底提供哪些能力、哪個 RPC 由誰實作」請看 [能力地圖](./feature-map.zh-TW.md)。
+> 想知道「出事的時候系統怎麼自保、任務失敗了會怎樣」請看 [可靠性與失敗處理導覽](./reliability.zh-TW.md)。
 > 想知道「我要怎麼在本機跑起來、改一行程式碼要跑哪些指令」請看 [開發流程導覽](./dev-workflow.zh-TW.md)。
 
 ## 一句話總結
@@ -87,9 +88,10 @@ integration 測試是靠**目錄**而非 build tag 區分的。完整流程見 [
 2. [`docs/data-model.zh-TW.md`](./data-model.zh-TW.md) — 狀態存在哪張表、shard 與 range_id 怎麼保證一致性。
 3. [`docs/runtime-topology.zh-TW.md`](./runtime-topology.zh-TW.md) — 一個 binary 怎麼變成叢集：fx 組裝、membership、shard 擁有權、兩套設定、優雅上下線。
 4. [`docs/feature-map.zh-TW.md`](./feature-map.zh-TW.md) — 對外的三個 gRPC service 與兩個 HTTP 面、能力分類、系統功能本身就是 Workflow 的 dogfooding 設計。
-5. [`docs/dev-workflow.zh-TW.md`](./dev-workflow.zh-TW.md) — 本機跑起來、build tag、四層測試、程式碼生成、lint 分層、CI 的測試取捨。
-6. `docs/architecture/README.md` — 系統全貌與 Workflow/Activity Task 流程。
-7. `docs/architecture/workflow-lifecycle.md` — 一個 Workflow 從 start 到 complete 的序列圖。
-8. `docs/architecture/history-service.md`、`matching-service.md` — 兩個最核心服務的內部機制。
-9. `docs/architecture/chasm.md` — 新一代狀態機框架（理解 repo 未來走向的關鍵）。
-10. `service/history/README.md`、`service/matching/fairness.md` — 更貼近程式碼的說明。
+5. [`docs/reliability.zh-TW.md`](./reliability.zh-TW.md) — 出事的時候怎麼辦：任務錯誤分類與退避、至少一次的去重防線、過載保護、DLQ、Activity/Workflow 重試。
+6. [`docs/dev-workflow.zh-TW.md`](./dev-workflow.zh-TW.md) — 本機跑起來、build tag、四層測試、程式碼生成、lint 分層、CI 的測試取捨。
+7. `docs/architecture/README.md` — 系統全貌與 Workflow/Activity Task 流程。
+8. `docs/architecture/workflow-lifecycle.md` — 一個 Workflow 從 start 到 complete 的序列圖。
+9. `docs/architecture/history-service.md`、`matching-service.md` — 兩個最核心服務的內部機制。
+10. `docs/architecture/chasm.md` — 新一代狀態機框架（理解 repo 未來走向的關鍵）。
+11. `service/history/README.md`、`service/matching/fairness.md` — 更貼近程式碼的說明。
