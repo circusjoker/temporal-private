@@ -1,7 +1,7 @@
 {
   "CurrVersion": "1.14",
   "MinCompatibleVersion": "1.14",
-  "Description": "Initial MariaDB visibility schema. The MySQL visibility migration history (v1.0 - v1.13) is squashed here because it relies on MySQL-only DDL (the -> / ->> JSON operators, expression indexes and multi-valued indexes) and no MariaDB database ever existed at those intermediate versions.",
+  "Description": "Initial MariaDB visibility schema. The MySQL v1.0-v1.13 history is squashed here: it uses MySQL-only DDL (-> and ->> operators, expression indexes, multi-valued indexes) and no MariaDB database existed at those versions.",
   "SchemaUpdateCqlFiles": [
     "base.sql"
   ]
