@@ -13,12 +13,13 @@ SQL_USER=$USERNAME SQL_PASSWORD=$PASSWD make install-schema-mysql
 ### Create the binary
 - Run `make temporal-sql-tool` on the root of repositroy
 - You should see an executable `temporal-sql-tool`
-- Temporal officially support MySQL and Postgres for SQL. 
+- Temporal officially support MySQL, MariaDB and Postgres for SQL. 
 - For other SQL database, you can add it easily as we do for MySQL/Postgres following our code in sql-extensions  
 
 ### Do one time database creation and schema setup for a new cluster
 
 - All command below are taking MySQL as example. For postgres, simply use with "--plugin postgres12" and "--schema-name postgresql/v12/temporal" & "--schema-name postgresql/v12/visibility"
+- For MariaDB, use "--plugin mariadb10" and "--schema-name mariadb/v10/temporal" & "--schema-name mariadb/v10/visibility"
 
 ```
 ./temporal-sql-tool --ep $SQL_HOST -p $port --db temporal --plugin mysql8 create
