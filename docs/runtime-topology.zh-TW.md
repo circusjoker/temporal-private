@@ -296,3 +296,4 @@ sed -n '1,15p' config/development-sqlite.yaml
 - 想看 `range_id` 租約與儲存結構 → [資料模型導覽](./data-model.zh-TW.md)
 - 想看 history 服務內部的佇列處理框架 → [docs/architecture/history-service.md](./architecture/history-service.md)
 - 想看 matching 的分區轉發與 backlog → [docs/architecture/matching-service.md](./architecture/matching-service.md)
+- 想看 worker 角色到底跑了哪些系統 workflow → [能力地圖第 4 節](./feature-map.zh-TW.md)
