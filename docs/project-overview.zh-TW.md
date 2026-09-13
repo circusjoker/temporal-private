@@ -1,7 +1,8 @@
 # 專案總覽（繁體中文）
 
 > 本文是給第一次接觸這個 repo 的人看的導覽，目的是快速回答「這專案在幹嘛、程式碼怎麼擺、要怎麼動手」。
-> 更深入的內部設計請看 [docs/architecture/](./architecture/README.md)。
+> 更深入的內部設計請看 [docs/architecture/](./architecture/README.md)；
+> 想直接看「一個請求在程式碼裡怎麼跑」請看 [請求流程導覽](./request-flow.zh-TW.md)。
 
 ## 一句話總結
 
@@ -75,8 +76,9 @@ make proto           # 重新產生 proto 相關程式碼
 
 ## 建議的閱讀順序
 
-1. `docs/architecture/README.md` — 系統全貌與 Workflow/Activity Task 流程。
-2. `docs/architecture/workflow-lifecycle.md` — 一個 Workflow 從 start 到 complete 的序列圖。
-3. `docs/architecture/history-service.md`、`matching-service.md` — 兩個最核心服務的內部機制。
-4. `docs/architecture/chasm.md` — 新一代狀態機框架（理解 repo 未來走向的關鍵）。
-5. `service/history/README.md`、`service/matching/fairness.md` — 更貼近程式碼的說明。
+1. [`docs/request-flow.zh-TW.md`](./request-flow.zh-TW.md) — 一個 Workflow 從 Start 到 Activity 完成，逐個檔案的程式碼路徑。
+2. `docs/architecture/README.md` — 系統全貌與 Workflow/Activity Task 流程。
+3. `docs/architecture/workflow-lifecycle.md` — 一個 Workflow 從 start 到 complete 的序列圖。
+4. `docs/architecture/history-service.md`、`matching-service.md` — 兩個最核心服務的內部機制。
+5. `docs/architecture/chasm.md` — 新一代狀態機框架（理解 repo 未來走向的關鍵）。
+6. `service/history/README.md`、`service/matching/fairness.md` — 更貼近程式碼的說明。
