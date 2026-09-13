@@ -358,15 +358,19 @@ CREATE TABLE cluster_metadata_info (
   PRIMARY KEY(metadata_partition, cluster_name)
 );
 
+-- NOTE(mariadb): session_start/last_heartbeat/record_expiry use TIMESTAMP(6) where MySQL uses
+-- a bare TIMESTAMP. MySQL rounds sub-second values when storing into a fractionless TIMESTAMP,
+-- while MariaDB truncates them, which would silently shift these timestamps back by up to one
+-- second. Keeping microsecond precision stores the value the server wrote, exactly as MySQL does.
 CREATE TABLE cluster_membership (
     membership_partition INT NOT NULL,
     host_id              BINARY(16) NOT NULL,
     rpc_address          VARCHAR(128) NOT NULL,
     rpc_port             SMALLINT NOT NULL,
     role                 TINYINT NOT NULL,
-    session_start        TIMESTAMP DEFAULT '1970-01-02 00:00:01',
-    last_heartbeat       TIMESTAMP DEFAULT '1970-01-02 00:00:01',
-    record_expiry        TIMESTAMP DEFAULT '1970-01-02 00:00:01',
+    session_start        TIMESTAMP(6) DEFAULT '1970-01-02 00:00:01',
+    last_heartbeat       TIMESTAMP(6) DEFAULT '1970-01-02 00:00:01',
+    record_expiry        TIMESTAMP(6) DEFAULT '1970-01-02 00:00:01',
     INDEX (role, host_id),
     INDEX (role, last_heartbeat),
     INDEX (rpc_address, role),

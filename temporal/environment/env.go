@@ -27,6 +27,10 @@ const (
 	mySQLPortEnv     = "MYSQL_PORT"
 	mySQLDefaultPort = 3306
 
+	mariaDBSeedsEnv    = "MARIADB_SEEDS"
+	mariaDBPortEnv     = "MARIADB_PORT"
+	mariaDBDefaultPort = 3306
+
 	esSeedsEnv       = "ES_SEEDS"
 	esPortEnv        = "ES_PORT"
 	esVersion        = "ES_VERSION"
@@ -137,6 +141,29 @@ func GetMySQLPort() int {
 	if err != nil {
 		//nolint:forbidigo // used in test code only
 		panic(fmt.Sprintf("error getting env %v", mySQLPortEnv))
+	}
+	return p
+}
+
+// GetMariaDBAddress return the MariaDB address
+func GetMariaDBAddress() string {
+	addr := os.Getenv(mariaDBSeedsEnv)
+	if addr == "" {
+		addr = GetLocalhostIP()
+	}
+	return addr
+}
+
+// GetMariaDBPort return the MariaDB port
+func GetMariaDBPort() int {
+	port := os.Getenv(mariaDBPortEnv)
+	if port == "" {
+		return mariaDBDefaultPort
+	}
+	p, err := strconv.Atoi(port)
+	if err != nil {
+		//nolint:forbidigo // used in test code only
+		panic(fmt.Sprintf("error getting env %v", mariaDBPortEnv))
 	}
 	return p
 }
